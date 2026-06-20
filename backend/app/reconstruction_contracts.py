@@ -632,6 +632,7 @@ class ReconstructionProject:
     createdAt: str
     updatedAt: str
     storageBytes: int
+    analysisOverrides: dict[str, Any]
     stems: list[StemAsset]
     analysisJob: AnalysisJob | None
     analysisSummary: AnalysisSummary | None
@@ -664,6 +665,7 @@ class ReconstructionProject:
             createdAt=now,
             updatedAt=now,
             storageBytes=0,
+            analysisOverrides={},
             stems=[],
             analysisJob=None,
             analysisSummary=None,
@@ -686,6 +688,7 @@ class ReconstructionProject:
             createdAt=str(value.get("createdAt", _now())),
             updatedAt=str(value.get("updatedAt", _now())),
             storageBytes=int(value.get("storageBytes", 0)),
+            analysisOverrides=dict(value.get("analysisOverrides", {})),
             stems=[StemAsset.from_dict(item) for item in value.get("stems", [])],
             analysisJob=(
                 AnalysisJob.from_dict(value["analysisJob"])
@@ -734,6 +737,7 @@ class ReconstructionProject:
             "createdAt": self.createdAt,
             "updatedAt": self.updatedAt,
             "storageBytes": self.storageBytes,
+            "analysisOverrides": self.analysisOverrides,
             "stems": [item.to_dict() for item in self.stems],
             "analysisJob": self.analysisJob.to_dict() if self.analysisJob else None,
             "analysisSummary": self.analysisSummary.to_dict() if self.analysisSummary else None,

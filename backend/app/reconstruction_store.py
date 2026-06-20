@@ -92,6 +92,24 @@ class ReconstructionStore:
             raise FileNotFoundError(project_id)
         shutil.rmtree(folder)
 
+    def clear_derived(self, project_id: str) -> ReconstructionProject:
+        project = self.get(project_id)
+        folder = self.project_dir(project_id)
+        for name in ("analysis", "exports"):
+            shutil.rmtree(folder / name, ignore_errors=True)
+        updated = project.with_changes(
+            status="uploaded" if project.stems else "draft",
+            analysisJob=None,
+            analysisSummary=None,
+            parts=[],
+            timeline=[],
+            soundMatches=[],
+            guideSteps=[],
+            mixPlan=None,
+            warnings=[],
+        )
+        return self.save(updated)
+
     def add_uploads(
         self,
         project_id: str,
@@ -222,4 +240,3 @@ class ReconstructionStore:
         temp = path.with_suffix(path.suffix + ".tmp")
         temp.write_text(json.dumps(value, indent=2), encoding="utf-8")
         os.replace(temp, path)
-

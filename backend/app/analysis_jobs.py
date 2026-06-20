@@ -56,6 +56,16 @@ class AnalysisJobRunner:
 
             result = self.provider.analyze(self.store.project_dir(project_id), progress)
             current = self.store.get(project_id)
+            if current.analysisOverrides:
+                result = type(result).from_dict(
+                    {
+                        **result.to_dict(),
+                        "summary": {
+                            **result.summary.to_dict(),
+                            **current.analysisOverrides,
+                        },
+                    }
+                )
             compiled = self.compiler.compile(current, result, self.inventory_provider())
             complete_job = (compiled.analysisJob or job).with_progress(
                 status="complete",
@@ -101,4 +111,3 @@ class AnalysisJobRunner:
             self.store.save(project.with_changes(status="error", analysisJob=interrupted))
             changed.append(project.id)
         return changed
-
