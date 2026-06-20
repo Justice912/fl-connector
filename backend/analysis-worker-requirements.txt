@@ -1,0 +1,6 @@
+basic-pitch==0.4.0
+librosa==0.10.2.post1
+numpy==1.26.4
+pyloudnorm==0.1.1
+scipy==1.12.0
+soundfile==0.12.1
