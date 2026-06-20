@@ -526,6 +526,9 @@ class AnalysisSummary:
     keyConfidence: float
     timeSignature: str
     durationSeconds: float
+    integratedLoudness: float | None
+    peakDb: float | None
+    stereoWidth: float | None
     sections: list[TimelineSection]
 
     @classmethod
@@ -538,6 +541,17 @@ class AnalysisSummary:
             keyConfidence=float(value.get("keyConfidence", 0)),
             timeSignature=str(value.get("timeSignature", "4/4")),
             durationSeconds=float(value.get("durationSeconds", 0)),
+            integratedLoudness=(
+                float(value["integratedLoudness"])
+                if value.get("integratedLoudness") is not None
+                else None
+            ),
+            peakDb=(float(value["peakDb"]) if value.get("peakDb") is not None else None),
+            stereoWidth=(
+                float(value["stereoWidth"])
+                if value.get("stereoWidth") is not None
+                else None
+            ),
             sections=[TimelineSection.from_dict(item) for item in value.get("sections", [])],
         )
         if not 40 <= summary.bpm <= 240:
@@ -555,6 +569,9 @@ class AnalysisSummary:
             "keyConfidence": self.keyConfidence,
             "timeSignature": self.timeSignature,
             "durationSeconds": self.durationSeconds,
+            "integratedLoudness": self.integratedLoudness,
+            "peakDb": self.peakDb,
+            "stereoWidth": self.stereoWidth,
             "sections": [item.to_dict() for item in self.sections],
         }
 
@@ -727,4 +744,3 @@ class ReconstructionProject:
             "mixPlan": self.mixPlan,
             "warnings": self.warnings,
         }
-

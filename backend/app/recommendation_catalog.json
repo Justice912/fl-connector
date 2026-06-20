@@ -1,0 +1,28 @@
+[
+  {
+    "id": "image-line-flex-content",
+    "name": "Image-Line FLEX content packs",
+    "kind": "plugin_content",
+    "roles": ["bass", "chords", "log_drum", "melody", "guitar"],
+    "url": "https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/plugins/FLEX.htm",
+    "licenseName": "Image-Line Software EULA",
+    "licenseUrl": "https://www.image-line.com/image-line-software-eula/",
+    "priceClass": "free_or_paid",
+    "platform": "Windows",
+    "score": 0.66,
+    "reason": "Official FLEX packs provide keys, pads, basses, plucks, and mallet-style sounds."
+  },
+  {
+    "id": "image-line-sounds",
+    "name": "Image-Line Sounds sample library",
+    "kind": "sample_pack",
+    "roles": ["drums", "percussion", "log_drum", "fx"],
+    "url": "https://www.image-line.com/fl-studio/samples-loops-presets/",
+    "licenseName": "Image-Line Software EULA",
+    "licenseUrl": "https://www.image-line.com/image-line-software-eula/",
+    "priceClass": "paid",
+    "platform": "Windows",
+    "score": 0.62,
+    "reason": "Official sample packs can fill missing drum and percussion roles without unverified downloads."
+  }
+]

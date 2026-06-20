@@ -3,6 +3,7 @@ import pytest
 from app.contracts import Note, NotePayload
 from app.reconstruction_contracts import (
     AnalysisJob,
+    AnalysisSummary,
     PatternSlice,
     ReconstructionError,
     ReconstructionProject,
@@ -74,3 +75,24 @@ def test_project_round_trips_stems_job_and_midi_part():
     assert hydrated.parts[0].patterns[0].payload.bpm == 114
     assert hydrated.parts[0].requiresReview is False
 
+
+def test_analysis_summary_preserves_mix_measurements():
+    summary = AnalysisSummary.from_dict(
+        {
+            "bpm": 114,
+            "bpmConfidence": 0.9,
+            "key": "G",
+            "scale": "minor",
+            "keyConfidence": 0.8,
+            "timeSignature": "4/4",
+            "durationSeconds": 180,
+            "integratedLoudness": -13.8,
+            "peakDb": -1.2,
+            "stereoWidth": 0.42,
+            "sections": [],
+        }
+    )
+
+    assert summary.to_dict()["integratedLoudness"] == -13.8
+    assert summary.to_dict()["peakDb"] == -1.2
+    assert summary.to_dict()["stereoWidth"] == 0.42
