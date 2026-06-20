@@ -3,6 +3,7 @@ import {
   Activity,
   Check,
   Download,
+  FileAudio,
   Gauge,
   Layers3,
   ListMusic,
@@ -17,6 +18,7 @@ import {
   TerminalSquare,
 } from 'lucide-react';
 import { api } from './api';
+import ReconstructionWorkspace from './reconstruction/ReconstructionWorkspace';
 
 const DEFAULT_PROMPT = 'Create an 8-bar deep amapiano song draft in A minor at 113 BPM with FPC drums, soft bass, warm chords, log drum, and a sparse top melody.';
 
@@ -396,6 +398,7 @@ function MasteringPanel({ plan, busy, onGenerate, onApprove }) {
 }
 
 function App() {
+  const [workspace, setWorkspace] = useState('draft');
   const [health, setHealth] = useState(null);
   const [bridge, setBridge] = useState(null);
   const [bridgeSetup, setBridgeSetup] = useState(null);
@@ -496,16 +499,19 @@ function App() {
           </div>
         </div>
         <nav>
-          <a className="active" href="#connector"><PlugZap size={18} /> Connector</a>
-          <a href="#bridge"><Activity size={18} /> Bridge</a>
-          <a href="#prompt"><Send size={18} /> Prompts</a>
-          <a href="#payload"><ListMusic size={18} /> Payloads</a>
-          <a href="#install"><Download size={18} /> Install</a>
-          <a href="#logs"><TerminalSquare size={18} /> Logs</a>
+          <button className={workspace === 'draft' ? 'active' : ''} onClick={() => setWorkspace('draft')}><PlugZap size={18} /> Draft</button>
+          <button className={workspace === 'rebuild' ? 'active' : ''} onClick={() => setWorkspace('rebuild')}><FileAudio size={18} /> Rebuild</button>
+          {workspace === 'draft' && <>
+            <a href="#bridge"><Activity size={18} /> Bridge</a>
+            <a href="#prompt"><Send size={18} /> Prompts</a>
+            <a href="#payload"><ListMusic size={18} /> Payloads</a>
+            <a href="#install"><Download size={18} /> Install</a>
+            <a href="#logs"><TerminalSquare size={18} /> Logs</a>
+          </>}
         </nav>
       </aside>
 
-      <main>
+      {workspace === 'rebuild' ? <main className="rebuild-main"><ReconstructionWorkspace /></main> : <main>
         <header className="topbar">
           <div>
             <p>Local FL Studio control surface</p>
@@ -704,7 +710,7 @@ function App() {
 
         {message && <div className="toast">{message}</div>}
         <EventLog events={events} />
-      </main>
+      </main>}
     </div>
   );
 }

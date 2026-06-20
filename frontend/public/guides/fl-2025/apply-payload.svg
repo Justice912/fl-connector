@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Apply the MIDI pattern</title><desc id="desc">Instructional map showing a Piano Roll and the FL Connector Apply Payload script menu.</desc>
+  <rect width="1280" height="720" fill="#171b1f"/><rect width="1280" height="74" fill="#343a40"/><text x="38" y="46" fill="#f8fafc" font-family="Segoe UI" font-size="24">FL Studio 2025 placement guide</text>
+  <rect x="35" y="105" width="1210" height="570" rx="6" fill="#111418" stroke="#59636d"/><rect x="35" y="105" width="1210" height="54" fill="#2b3238"/>
+  <text x="62" y="140" fill="#f8fafc" font-family="Segoe UI" font-size="21">Piano Roll - selected channel</text>
+  <g stroke="#303942" stroke-width="1"><path d="M100 160v515M220 160v515M340 160v515M460 160v515M580 160v515M700 160v515M820 160v515"/><path d="M35 220h1210M35 280h1210M35 340h1210M35 400h1210M35 460h1210M35 520h1210M35 580h1210"/></g>
+  <g fill="#fbbf24"><rect x="205" y="500" width="110" height="22" rx="3"/><rect x="345" y="440" width="155" height="22" rx="3"/><rect x="530" y="470" width="95" height="22" rx="3"/></g>
+  <rect x="842" y="176" width="370" height="210" rx="5" fill="#20262b" stroke="#fbbf24" stroke-width="4"/>
+  <text x="872" y="218" fill="#67e8f9" font-family="Segoe UI" font-size="18">Open Piano Roll: F7</text><text x="872" y="258" fill="#dbe5ee" font-family="Segoe UI" font-size="18">Tools &gt; Scripts &gt;</text><text x="872" y="296" fill="#fbbf24" font-family="Segoe UI" font-size="22" font-weight="700">FL Connector</text><text x="872" y="327" fill="#fbbf24" font-family="Segoe UI" font-size="22" font-weight="700">Apply Payload</text>
+</svg>

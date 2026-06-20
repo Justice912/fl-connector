@@ -54,6 +54,26 @@ def test_create_requires_rights_and_uploads_valid_stem(tmp_path: Path, monkeypat
     assert client.get("/api/reconstructions").json()[0]["id"] == project_id
 
 
+def test_uploaded_stem_can_be_previewed_locally(tmp_path: Path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    created = client.post(
+        "/api/reconstructions",
+        json={"title": "Owned preview", "rightsAccepted": True},
+    ).json()
+    uploaded = client.post(
+        f"/api/reconstructions/{created['id']}/stems",
+        files=[("files", ("bass.wav", wav_bytes(), "audio/wav"))],
+    ).json()
+
+    response = client.get(
+        f"/api/reconstructions/{created['id']}/stems/{uploaded['stems'][0]['id']}/content"
+    )
+
+    assert response.status_code == 200
+    assert response.content == wav_bytes()
+    assert response.headers["content-type"] == "audio/wav"
+
+
 def test_metadata_correction_invalidates_derived_blueprint(tmp_path: Path, monkeypatch):
     client = isolated_client(tmp_path, monkeypatch)
     store = main.RECONSTRUCTION_STORE
@@ -159,4 +179,3 @@ def test_delete_project_removes_it_from_listing(tmp_path: Path, monkeypatch):
 
     assert response.status_code == 204
     assert client.get("/api/reconstructions").json() == []
-

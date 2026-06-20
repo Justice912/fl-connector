@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Add the approved instrument</title><desc id="desc">Instructional map highlighting the plus button in the Channel Rack.</desc>
+  <rect width="1280" height="720" fill="#171b1f"/><rect width="1280" height="74" fill="#343a40"/><text x="38" y="46" fill="#f8fafc" font-family="Segoe UI" font-size="24">FL Studio 2025 placement guide</text>
+  <rect x="62" y="120" width="820" height="520" rx="6" fill="#252b30" stroke="#707a84"/><text x="94" y="166" fill="#f8fafc" font-family="Segoe UI" font-size="24">Channel Rack</text>
+  <g fill="#3a4249"><rect x="94" y="205" width="750" height="58"/><rect x="94" y="280" width="750" height="58"/><rect x="94" y="355" width="750" height="58"/></g>
+  <rect x="94" y="455" width="72" height="72" rx="5" fill="#2dd4bf" stroke="#fbbf24" stroke-width="5"/><path d="M130 473v36M112 491h36" stroke="#062522" stroke-width="6"/>
+  <rect x="920" y="180" width="300" height="220" rx="5" fill="#20262b"/><text x="952" y="228" fill="#fbbf24" font-family="Segoe UI" font-size="25" font-weight="700">Add a channel</text>
+  <text x="952" y="272" fill="#dbe5ee" font-family="Segoe UI" font-size="19">1. Click +</text><text x="952" y="310" fill="#dbe5ee" font-family="Segoe UI" font-size="19">2. Choose the approved</text><text x="972" y="342" fill="#dbe5ee" font-family="Segoe UI" font-size="19">installed instrument</text>
+  <path d="M920 370 L177 486" stroke="#fbbf24" stroke-width="5" fill="none"/><circle cx="166" cy="488" r="11" fill="#fbbf24"/>
+</svg>

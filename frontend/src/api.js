@@ -1,9 +1,13 @@
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
 async function request(path, options = {}) {
+  const headers = { ...(options.headers ?? {}) };
+  if (options.body && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
     ...options,
+    headers,
   });
 
   if (!response.ok) {
@@ -13,6 +17,23 @@ async function request(path, options = {}) {
 
   if (response.status === 204) return null;
   return response.json();
+}
+
+async function download(path, fallbackName) {
+  const response = await fetch(`${API_BASE}${path}`);
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || `Request failed: ${response.status}`);
+  }
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const fileName = disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 export const api = {
@@ -28,4 +49,26 @@ export const api = {
   bridgeSetup: () => request('/api/bridge/setup'),
   installBridgeScripts: (body = {}) => request('/api/bridge/setup/install-scripts', { method: 'POST', body: JSON.stringify(body) }),
   events: () => request('/api/events'),
+  analysisSetup: () => request('/api/analysis/setup'),
+  installAnalysisWorker: (approved) => request('/api/analysis/setup/install', { method: 'POST', body: JSON.stringify({ approved }) }),
+  listReconstructions: () => request('/api/reconstructions'),
+  getReconstruction: (id) => request(`/api/reconstructions/${id}`),
+  createReconstruction: (body) => request('/api/reconstructions', { method: 'POST', body: JSON.stringify(body) }),
+  updateReconstruction: (id, body) => request(`/api/reconstructions/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteReconstruction: (id) => request(`/api/reconstructions/${id}`, { method: 'DELETE' }),
+  uploadReconstructionStems: (id, files) => {
+    const body = new FormData();
+    files.forEach((file) => body.append('files', file));
+    return request(`/api/reconstructions/${id}/stems`, { method: 'POST', body });
+  },
+  analyzeReconstruction: (id) => request(`/api/reconstructions/${id}/analyze`, { method: 'POST' }),
+  retryReconstruction: (id) => request(`/api/reconstructions/${id}/retry`, { method: 'POST' }),
+  updateReconstructionPart: (projectId, partId, body) => request(`/api/reconstructions/${projectId}/parts/${partId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  approveReconstructionPattern: (projectId, partId, patternId) => request(`/api/reconstructions/${projectId}/parts/${partId}/patterns/${patternId}/approve`, { method: 'POST' }),
+  approveReconstructionAudio: (projectId, partId) => request(`/api/reconstructions/${projectId}/parts/${partId}/approve-audio`, { method: 'POST' }),
+  updateGuideStep: (projectId, stepId, completed) => request(`/api/reconstructions/${projectId}/guide/${stepId}`, { method: 'PATCH', body: JSON.stringify({ completed }) }),
+  inventory: () => request('/api/inventory'),
+  refreshInventory: (extraRoots = []) => request('/api/inventory/refresh', { method: 'POST', body: JSON.stringify({ extraRoots }) }),
+  exportReconstruction: (id) => download(`/api/reconstructions/${id}/export`, `reconstruction-${id}.zip`),
+  stemContentUrl: (projectId, stemId) => `${API_BASE}/api/reconstructions/${projectId}/stems/${stemId}/content`,
 };

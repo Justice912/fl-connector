@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from .analysis import LocalAnalysisProvider
@@ -334,6 +334,15 @@ async def upload_reconstruction_stems(
         raise HTTPException(status_code=404, detail="reconstruction project not found") from exc
     except ReconstructionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/reconstructions/{project_id}/stems/{stem_id}/content")
+def reconstruction_stem_content(project_id: str, stem_id: str) -> FileResponse:
+    try:
+        path, stem = RECONSTRUCTION_STORE.stem_path(project_id, stem_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="reconstruction stem not found") from exc
+    return FileResponse(path, media_type=stem.mediaType, filename=stem.fileName)
 
 
 @app.patch("/api/reconstructions/{project_id}")

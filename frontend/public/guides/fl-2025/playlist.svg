@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Arrange the song in the Playlist</title><desc id="desc">Instructional map showing patterns and audio clips placed by bar in the Playlist.</desc>
+  <rect width="1280" height="720" fill="#171b1f"/><rect width="1280" height="74" fill="#343a40"/><text x="38" y="46" fill="#f8fafc" font-family="Segoe UI" font-size="24">FL Studio 2025 placement guide</text>
+  <rect x="35" y="105" width="1210" height="565" rx="6" fill="#111418" stroke="#59636d"/><text x="62" y="143" fill="#f8fafc" font-family="Segoe UI" font-size="21">Playlist - press F5</text>
+  <g stroke="#343d45"><path d="M170 160v510M290 160v510M410 160v510M530 160v510M650 160v510M770 160v510M890 160v510M1010 160v510M1130 160v510"/><path d="M35 225h1210M35 305h1210M35 385h1210M35 465h1210M35 545h1210"/></g>
+  <g fill="#cbd5df" font-family="Segoe UI" font-size="16"><text x="64" y="205">Drums</text><text x="64" y="285">Bass</text><text x="64" y="365">Keys</text><text x="64" y="445">Vocals</text></g>
+  <g><rect x="170" y="180" width="480" height="34" fill="#2dd4bf"/><rect x="410" y="260" width="600" height="34" fill="#fbbf24"/><rect x="290" y="340" width="480" height="34" fill="#67e8f9"/><rect x="530" y="420" width="360" height="34" fill="#f472b6"/></g>
+  <rect x="850" y="520" width="350" height="110" rx="5" fill="#20262b" stroke="#fbbf24" stroke-width="4"/><text x="878" y="560" fill="#fbbf24" font-family="Segoe UI" font-size="20" font-weight="700">Match the listed start bars</text><text x="878" y="596" fill="#dbe5ee" font-family="Segoe UI" font-size="17">Patterns and audio stay aligned.</text>
+</svg>

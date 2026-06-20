@@ -73,6 +73,17 @@ class ReconstructionStore:
             raise FileNotFoundError(project_id)
         return ReconstructionProject.from_dict(json.loads(path.read_text(encoding="utf-8")))
 
+    def stem_path(self, project_id: str, stem_id: str) -> tuple[Path, StemAsset]:
+        project = self.get(project_id)
+        stem = next((item for item in project.stems if item.id == stem_id), None)
+        if stem is None:
+            raise FileNotFoundError(stem_id)
+        project_dir = self.project_dir(project_id).resolve()
+        path = (project_dir / stem.relativePath).resolve()
+        if project_dir not in path.parents or not path.is_file():
+            raise FileNotFoundError(stem_id)
+        return path, stem
+
     def list_projects(self) -> list[ReconstructionProject]:
         if not self.base_dir.exists():
             return []

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Apply the mix plan</title><desc id="desc">Instructional map showing Mixer tracks and insert effect slots.</desc>
+  <rect width="1280" height="720" fill="#171b1f"/><rect width="1280" height="74" fill="#343a40"/><text x="38" y="46" fill="#f8fafc" font-family="Segoe UI" font-size="24">FL Studio 2025 placement guide</text>
+  <rect x="35" y="105" width="1210" height="565" rx="6" fill="#111418" stroke="#59636d"/><text x="62" y="143" fill="#f8fafc" font-family="Segoe UI" font-size="21">Mixer - press F9</text>
+  <g fill="#2a3137" stroke="#48515a"><rect x="60" y="175" width="105" height="450"/><rect x="178" y="175" width="105" height="450"/><rect x="296" y="175" width="105" height="450"/><rect x="414" y="175" width="105" height="450"/><rect x="532" y="175" width="105" height="450"/></g>
+  <g fill="#dbe5ee" font-family="Segoe UI" font-size="15"><text x="83" y="606">Master</text><text x="207" y="606">Drums</text><text x="329" y="606">Bass</text><text x="449" y="606">Keys</text><text x="558" y="606">Vocal</text></g>
+  <g stroke="#2dd4bf" stroke-width="8"><path d="M112 260v220"/><path d="M230 320v160"/><path d="M348 280v200"/><path d="M466 345v135"/><path d="M584 300v180"/></g>
+  <rect x="700" y="175" width="500" height="320" rx="5" fill="#20262b" stroke="#fbbf24" stroke-width="4"/><text x="732" y="218" fill="#fbbf24" font-family="Segoe UI" font-size="23" font-weight="700">Selected insert effect slots</text>
+  <g fill="#323a42"><rect x="732" y="250" width="436" height="50"/><rect x="732" y="315" width="436" height="50"/><rect x="732" y="380" width="436" height="50"/></g>
+  <g fill="#dbe5ee" font-family="Segoe UI" font-size="18"><text x="754" y="282">1  Fruity Parametric EQ 2</text><text x="754" y="347">2  Maximus (Master only)</text><text x="754" y="412">3  Fruity Limiter (Master only)</text></g>
+</svg>

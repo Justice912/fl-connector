@@ -251,7 +251,7 @@ class ReconstructionCompiler:
                 "Open the instrument and pattern list.",
                 "View > Channel rack",
                 "F6",
-                "/guides/fl-2025/channel-rack.png",
+                "/guides/fl-2025/channel-rack.svg",
                 "The Channel Rack is visible.",
             ),
             (
@@ -260,7 +260,7 @@ class ReconstructionCompiler:
                 "Use the plus button and choose the approved installed sound.",
                 "Channel Rack > + button > approved instrument",
                 None,
-                "/guides/fl-2025/add-instrument.png",
+                "/guides/fl-2025/add-instrument.svg",
                 "The new channel appears in the Channel Rack.",
             ),
             (
@@ -269,7 +269,7 @@ class ReconstructionCompiler:
                 "Open the selected channel Piano Roll and apply the approved pattern.",
                 "Tools > Scripts > FL Connector Apply Payload",
                 "F7",
-                "/guides/fl-2025/apply-payload.png",
+                "/guides/fl-2025/apply-payload.svg",
                 "The reconstructed notes appear in the Piano Roll.",
             ),
             (
@@ -278,7 +278,7 @@ class ReconstructionCompiler:
                 "Place patterns and audio clips at their listed start bars.",
                 "View > Playlist",
                 "F5",
-                "/guides/fl-2025/playlist.png",
+                "/guides/fl-2025/playlist.svg",
                 "Patterns and clips line up with the blueprint sections.",
             ),
             (
@@ -287,7 +287,7 @@ class ReconstructionCompiler:
                 "Route each channel and add the approved built-in effects.",
                 "View > Mixer",
                 "F9",
-                "/guides/fl-2025/mixer.png",
+                "/guides/fl-2025/mixer.svg",
                 "Each blueprint channel has its own Mixer track.",
             ),
         ]
@@ -307,4 +307,3 @@ class ReconstructionCompiler:
             )
             for index, (title, area, action, menu, shortcut, image, expected) in enumerate(rows, 1)
         ]
-
