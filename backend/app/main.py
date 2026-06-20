@@ -22,7 +22,12 @@ from .mastering import generate_mastering_plan
 from .inventory import InventoryScanner, InventorySnapshot
 from .paths import detect_paths
 from .reconstruction_compiler import ReconstructionCompiler
-from .reconstruction_contracts import ReconstructionError, ReconstructionProject, ReconstructedPart
+from .reconstruction_contracts import (
+    PatternSlice,
+    ReconstructionError,
+    ReconstructionProject,
+    ReconstructedPart,
+)
 from .reconstruction_export import build_reconstruction_export
 from .reconstruction_store import MAX_PROJECT_BYTES, ReconstructionStore, UploadCandidate
 from .store import PayloadStore
@@ -96,6 +101,12 @@ class ReconstructionPartPatchRequest(BaseModel):
     role: str | None = None
     outputMode: str | None = Field(default=None, pattern="^(midi|audio)$")
     selectedSoundId: str | None = None
+
+
+class ReconstructionPatternPatchRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    placements: list[int] | None = None
+    payload: dict[str, Any] | None = None
 
 
 class GuideStepPatchRequest(BaseModel):
@@ -442,6 +453,47 @@ def patch_reconstruction_part(
     return RECONSTRUCTION_STORE.save(project.with_changes(parts=parts)).to_dict()
 
 
+@app.patch("/api/reconstructions/{project_id}/parts/{part_id}/patterns/{pattern_id}")
+def patch_reconstruction_pattern(
+    project_id: str,
+    part_id: str,
+    pattern_id: str,
+    request: ReconstructionPatternPatchRequest,
+) -> dict[str, Any]:
+    try:
+        project = RECONSTRUCTION_STORE.get(project_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="reconstruction project not found") from exc
+    data = project.to_dict()
+    changed = False
+    for part in data["parts"]:
+        if part["id"] != part_id:
+            continue
+        for index, pattern in enumerate(part["patterns"]):
+            if pattern["id"] != pattern_id:
+                continue
+            values = request.model_dump(exclude_none=True)
+            payload_updates = values.pop("payload", {})
+            payload = {
+                **pattern["payload"],
+                **payload_updates,
+                "id": pattern["payload"]["id"],
+                "status": "draft",
+            }
+            corrected = {**pattern, **values, "payload": payload}
+            try:
+                part["patterns"][index] = PatternSlice.from_dict(corrected).to_dict()
+            except (ContractError, ReconstructionError) as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            part["approved"] = False
+            data["status"] = "review"
+            changed = True
+            break
+    if not changed:
+        raise HTTPException(status_code=404, detail="reconstruction pattern not found")
+    return RECONSTRUCTION_STORE.save(ReconstructionProject.from_dict(data)).to_dict()
+
+
 @app.post(
     "/api/reconstructions/{project_id}/parts/{part_id}/patterns/{pattern_id}/approve"
 )
@@ -475,6 +527,8 @@ def approve_reconstruction_pattern(
             part["approved"] = all(
                 pattern["payload"]["status"] == "approved" for pattern in part["patterns"]
             )
+    if data["parts"] and all(part["approved"] for part in data["parts"]):
+        data["status"] = "approved"
     updated = RECONSTRUCTION_STORE.save(ReconstructionProject.from_dict(data))
     return {"project": updated.to_dict(), "payload": approved.to_dict()}
 
@@ -490,6 +544,8 @@ def approve_reconstruction_audio(project_id: str, part_id: str) -> dict[str, Any
     if selected is None or selected["outputMode"] != "audio":
         raise HTTPException(status_code=404, detail="audio reconstruction part not found")
     selected["approved"] = True
+    if data["parts"] and all(part["approved"] for part in data["parts"]):
+        data["status"] = "approved"
     return RECONSTRUCTION_STORE.save(ReconstructionProject.from_dict(data)).to_dict()
 
 

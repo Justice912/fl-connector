@@ -10,6 +10,7 @@ Prompt -> grouped song draft -> selected part -> approval -> FL Piano Roll scrip
 Prompt/song draft -> built-in mastering chain -> approval -> Mixer F9 guide
 Flapi bridge probe -> read-only bridge snapshot -> UI health panel
 Flapi transport action -> play/stop -> fresh bridge snapshot
+Owned stems -> local analysis -> reviewed reconstruction -> FL payloads and guide
 ```
 
 The live bridge and MCP-style control layer can grow from the same backend once
@@ -112,3 +113,27 @@ controller bridge.
 - No blocked vocal-generation/TCSinger2 work is wired into this connector.
 - The AI provider is currently deterministic/mockable; cloud providers can be
   added behind the same payload schema.
+- Stem reconstruction stays local and does not claim to recover hidden Suno
+  presets, mixer settings, or project structure.
+- Reconstruction MIDI approval reuses the verified Piano Roll payload path;
+  audio layers remain aligned files with Playlist placement instructions.
+- Automatic `.flp` generation, automatic plugin downloads, full-mix source
+  separation, and automatic mixer plugin insertion remain out of scope.
+
+## Rebuild Workspace
+
+The Rebuild workspace adds a separate Audio-to-FL flow without replacing the
+drafting workspace. It supports rights-confirmed uploads, persisted analysis
+jobs, review thresholds, part and pattern corrections, installed-first sound
+matching, versioned guide assets, and a portable reconstruction ZIP.
+
+The confidence policy is explicit:
+
+- `0.80-1.00`: MIDI may be approved after review.
+- `0.60-0.79`: MIDI is marked `Review required`.
+- Below `0.60`: keep aligned audio unless the user explicitly overrides it.
+- Vocals and effects default to aligned audio.
+
+The local worker gate requires Python 3.11, FFmpeg, and all pinned analysis
+packages to pass import checks. Analysis remains blocked when the gate fails;
+the connector does not silently swap transcription engines.

@@ -64,6 +64,7 @@ export const api = {
   analyzeReconstruction: (id) => request(`/api/reconstructions/${id}/analyze`, { method: 'POST' }),
   retryReconstruction: (id) => request(`/api/reconstructions/${id}/retry`, { method: 'POST' }),
   updateReconstructionPart: (projectId, partId, body) => request(`/api/reconstructions/${projectId}/parts/${partId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  updateReconstructionPattern: (projectId, partId, patternId, body) => request(`/api/reconstructions/${projectId}/parts/${partId}/patterns/${patternId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   approveReconstructionPattern: (projectId, partId, patternId) => request(`/api/reconstructions/${projectId}/parts/${partId}/patterns/${patternId}/approve`, { method: 'POST' }),
   approveReconstructionAudio: (projectId, partId) => request(`/api/reconstructions/${projectId}/parts/${partId}/approve-audio`, { method: 'POST' }),
   updateGuideStep: (projectId, stepId, completed) => request(`/api/reconstructions/${projectId}/guide/${stepId}`, { method: 'PATCH', body: JSON.stringify({ completed }) }),

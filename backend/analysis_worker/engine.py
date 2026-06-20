@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 Progress = Callable[[int, str, str], None]
+MAX_AUDIO_SECONDS = 15 * 60
 
 
 def infer_role(file_name: str, existing_role: str = "other") -> str:
@@ -36,6 +37,13 @@ def classify_drum_hit(*, low: float, mid: float, high: float) -> int:
     return largest[1]
 
 
+def validate_audio_duration(sample_count: int, sample_rate: int, file_name: str) -> None:
+    if sample_rate <= 0:
+        raise RuntimeError(f"Decoded sample rate is invalid: {file_name}")
+    if sample_count / sample_rate > MAX_AUDIO_SECONDS:
+        raise RuntimeError(f"Audio files may not exceed 15 minutes: {file_name}")
+
+
 def analyze_project(project_path: Path, progress: Progress) -> dict[str, Any]:
     import json
 
@@ -56,6 +64,7 @@ def analyze_project(project_path: Path, progress: Progress) -> dict[str, Any]:
         path = project_path / stem["relativePath"]
         multi, sample_rate = librosa.load(path, sr=22050, mono=False)
         mono = np.mean(multi, axis=0) if getattr(multi, "ndim", 1) > 1 else multi
+        validate_audio_duration(len(mono), sample_rate, stem["fileName"])
         decoded[stem["id"]] = (mono, sample_rate, multi)
         duration = max(duration, len(mono) / sample_rate)
         progress(

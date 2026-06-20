@@ -20,6 +20,7 @@ import {
 import { api } from '../api';
 
 const ACCEPTED_STEMS = '.zip,.wav,.mp3,.flac,.m4a';
+const STEM_ROLES = ['drums', 'percussion', 'bass', 'chords', 'log_drum', 'melody', 'vocals', 'guitar', 'fx', 'other'];
 
 function StatusBadge({ status }) {
   const tone = ['review', 'approved', 'complete'].includes(status) ? 'good' : status === 'error' ? 'bad' : 'warn';
@@ -92,15 +93,19 @@ function ProjectCreator({ busy, onCreate }) {
 function SetupBar({ setup, busy, onInstall }) {
   const [approved, setApproved] = useState(false);
   if (setup?.ready) return <div className="setup-strip ready"><Check size={18} /> Local analysis worker ready</div>;
+  const missing = setup?.checks?.filter((check) => check.status !== 'ready') ?? [];
+  const message = setup
+    ? `Setup needed: ${missing.map((check) => check.label).join(', ') || 'review the local prerequisites'}.`
+    : 'Checking the local analysis worker.';
   return (
     <div className="setup-strip">
       <Wrench size={18} aria-hidden="true" />
-      <span>{setup?.message ?? 'Checking the local analysis worker.'}</span>
+      <span>{message}</span>
       <label className="inline-consent">
         <input type="checkbox" checked={approved} onChange={(event) => setApproved(event.target.checked)} />
         Approve local install
       </label>
-      <button className="secondary-button rebuild-inline" disabled={busy || !approved} onClick={() => onInstall(approved)}>
+      <button className="secondary-button rebuild-inline" disabled={busy || !approved || !setup?.canInstall} onClick={() => onInstall(approved)}>
         Install worker
       </button>
     </div>
@@ -130,9 +135,21 @@ function UploadBand({ project, busy, selectedFiles, onFiles, onUpload, onAnalyze
   );
 }
 
-function AnalysisHeader({ project }) {
+function AnalysisHeader({ project, busy, onCorrect }) {
   const job = project.analysisJob;
   const summary = project.analysisSummary;
+  const [correction, setCorrection] = useState({
+    bpm: summary?.bpm ?? project.analysisOverrides?.bpm ?? 114,
+    key: summary?.key ?? project.analysisOverrides?.key ?? 'G',
+    scale: summary?.scale ?? project.analysisOverrides?.scale ?? 'minor',
+  });
+  useEffect(() => {
+    setCorrection({
+      bpm: summary?.bpm ?? project.analysisOverrides?.bpm ?? 114,
+      key: summary?.key ?? project.analysisOverrides?.key ?? 'G',
+      scale: summary?.scale ?? project.analysisOverrides?.scale ?? 'minor',
+    });
+  }, [project.id, project.updatedAt, summary?.bpm, summary?.key, summary?.scale]);
   return (
     <section className="analysis-band">
       <div className="analysis-progress">
@@ -152,11 +169,17 @@ function AnalysisHeader({ project }) {
           <span><small>Key certainty</small><strong>{Math.round(summary.keyConfidence * 100)}%</strong></span>
         </div>
       )}
+      <form className="analysis-correction" onSubmit={(event) => { event.preventDefault(); onCorrect({ ...correction, bpm: Number(correction.bpm) }); }}>
+        <label>Correct BPM<input type="number" min="40" max="240" step="0.01" value={correction.bpm} onChange={(event) => setCorrection((value) => ({ ...value, bpm: event.target.value }))} /></label>
+        <label>Correct key<input value={correction.key} maxLength={3} onChange={(event) => setCorrection((value) => ({ ...value, key: event.target.value }))} /></label>
+        <label>Scale<select value={correction.scale} onChange={(event) => setCorrection((value) => ({ ...value, scale: event.target.value }))}><option value="minor">Minor</option><option value="major">Major</option></select></label>
+        <div><small>Corrections clear dependent patterns and require analysis again.</small><button className="secondary-button rebuild-inline" type="submit" disabled={busy}>Save corrections</button></div>
+      </form>
     </section>
   );
 }
 
-function EvidencePane({ project, client, busy, onProjectChange }) {
+function EvidencePane({ project, client, busy, onPatchPart }) {
   const stemById = useMemo(() => Object.fromEntries(project.stems.map((stem) => [stem.id, stem])), [project.stems]);
   return (
     <section className="evidence-pane">
@@ -178,16 +201,29 @@ function EvidencePane({ project, client, busy, onProjectChange }) {
               </div>
               {stem && client.stemContentUrl && <audio controls preload="metadata" src={client.stemContentUrl(project.id, stem.id)} />}
               <label>
+                Role for {part.name}
+                <select value={part.role} disabled={busy} onChange={(event) => onPatchPart(part.id, { role: event.target.value })}>
+                  {STEM_ROLES.map((role) => <option value={role} key={role}>{role.replace('_', ' ')}</option>)}
+                </select>
+              </label>
+              <label>
                 Output mode for {part.name}
                 <select
                   value={part.outputMode}
                   disabled={busy}
-                  onChange={async (event) => onProjectChange(await client.updateReconstructionPart(project.id, part.id, { outputMode: event.target.value }))}
+                  onChange={(event) => onPatchPart(part.id, { outputMode: event.target.value })}
                 >
                   <option value="midi">Editable MIDI</option>
                   <option value="audio">Aligned audio</option>
                 </select>
               </label>
+              {project.soundMatches.length > 0 && <label>
+                Sound for {part.name}
+                <select value={part.selectedSoundId ?? ''} disabled={busy} onChange={(event) => onPatchPart(part.id, { selectedSoundId: event.target.value })}>
+                  <option value="">Choose a recommendation</option>
+                  {project.soundMatches.map((match) => <option value={match.id} key={match.id}>{match.name}{match.installed ? ' (installed)' : ''}</option>)}
+                </select>
+              </label>}
               <small>{part.instrumentHint}</small>
             </article>
           );
@@ -217,7 +253,10 @@ function BlueprintPane({ project, client, busy, onProjectChange }) {
                     className="secondary-button rebuild-inline"
                     disabled={busy || pattern.payload.status === 'approved'}
                     aria-label={`Approve ${pattern.name}`}
-                    onClick={async () => onProjectChange(await client.approveReconstructionPattern(project.id, part.id, pattern.id))}
+                    onClick={async () => {
+                      const result = await client.approveReconstructionPattern(project.id, part.id, pattern.id);
+                      onProjectChange(result.project ?? result);
+                    }}
                   >
                     <Check size={16} /> {pattern.payload.status === 'approved' ? 'Approved' : 'Approve MIDI'}
                   </button>
@@ -336,18 +375,23 @@ export default function ReconstructionWorkspace({ client = api }) {
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const inventoryItems = inventory?.items ?? [];
+  const pluginCount = inventory?.plugins?.length ?? inventoryItems.filter((item) => item.kind === 'plugin').length;
+  const sampleCount = inventory?.samples?.length ?? inventoryItems.filter((item) => item.kind === 'sample').length;
 
   useEffect(() => {
     let active = true;
-    Promise.all([client.listReconstructions(), client.analysisSetup(), client.inventory()])
-      .then(([items, nextSetup, nextInventory]) => {
-        if (!active) return;
-        setProjects(items);
-        setProject(items[0] ?? null);
-        setSetup(nextSetup);
-        setInventory(nextInventory);
-      })
-      .catch((reason) => active && setError(reason.message));
+    client.listReconstructions().then((items) => {
+      if (!active) return;
+      setProjects(items);
+      setProject(items[0] ?? null);
+    }).catch((reason) => active && setError(reason.message));
+    client.analysisSetup().then((nextSetup) => {
+      if (active) setSetup(nextSetup);
+    }).catch((reason) => active && setError(reason.message));
+    client.inventory().then((nextInventory) => {
+      if (active) setInventory(nextInventory);
+    }).catch((reason) => active && setError(reason.message));
     return () => { active = false; };
   }, [client]);
 
@@ -419,9 +463,9 @@ export default function ReconstructionWorkspace({ client = api }) {
             onUpload={upload}
             onAnalyze={() => run(async () => adopt(await (project.status === 'error' ? client.retryReconstruction(project.id) : client.analyzeReconstruction(project.id))))}
           />
-          <AnalysisHeader project={project} />
+          <AnalysisHeader project={project} busy={busy} onCorrect={(values) => run(async () => adopt(await client.updateReconstruction(project.id, values)))} />
           <div className="rebuild-split">
-            <EvidencePane project={project} client={client} busy={busy} onProjectChange={adopt} />
+            <EvidencePane project={project} client={client} busy={busy} onPatchPart={(partId, values) => run(async () => adopt(await client.updateReconstructionPart(project.id, partId, values)))} />
             <BlueprintPane project={project} client={client} busy={busy} onProjectChange={adopt} />
           </div>
           <Arrangement project={project} />
@@ -430,7 +474,7 @@ export default function ReconstructionWorkspace({ client = api }) {
             <MixPlan plan={project.mixPlan} />
           </div>
           <GuideCarousel project={project} client={client} busy={busy} onProjectChange={adopt} />
-          {inventory && <span className="inventory-footnote">Inventory indexed {inventory.plugins?.length ?? 0} plugins and {inventory.samples?.length ?? 0} samples locally.</span>}
+          {inventory && <span className="inventory-footnote">Inventory indexed {pluginCount} plugins and {sampleCount} samples locally.</span>}
         </>
       )}
       {busy && <div className="rebuild-busy"><LoaderCircle size={18} className="spin" /> Working locally</div>}

@@ -1,4 +1,4 @@
-# FL Connector MVP
+# FL Connector
 
 Local Windows-first connector for FL Studio 2025. It turns a natural-language
 prompt into approved MIDI-note payloads, then applies the selected payload in
@@ -13,10 +13,15 @@ the currently open FL Studio Piano Roll with a companion `.pyscript`.
 - React/Vite web app for prompt entry, piano-roll preview, approval, install,
   grouped song parts, arrangement guide, built-in mastering chain, bridge
   health, and logs.
+- Audio-to-FL Rebuild workspace for rights-confirmed stem upload, local analysis
+  progress, confidence review, MIDI/audio overrides, Channel Rack and Playlist
+  blueprints, sound matching, FL guidance, and reconstruction ZIP export.
 - FL Studio Piano Roll writer script that reads the approved payload and calls
   `flp.score.addNote(...)`.
-- Tests for payload validation, song-part generation, deterministic generation,
-  mastering-chain generation, read-only bridge schema, and FL path detection.
+- Secure project storage with ZIP checks, file/count/size limits, checksums,
+  local stem preview, correction invalidation, and retryable analysis jobs.
+- Tests for the drafting, bridge, reconstruction, export, worker, inventory, and
+  frontend review workflows.
 
 ## Local Run
 
@@ -38,6 +43,24 @@ npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
 Then open `http://127.0.0.1:5173`.
+
+## Rebuild A Stem Export
+
+1. Open `Rebuild` in the left navigation.
+2. Create a project and confirm that you own the stems or have permission.
+3. Upload a ZIP or up to 20 WAV, MP3, FLAC, or M4A files.
+4. Complete the local analysis setup shown at the top of the workspace.
+5. Click `Analyze locally`, then review tempo, key, confidence, roles, output
+   modes, instruments, patterns, Playlist sections, and the built-in mix plan.
+6. Approve MIDI patterns one at a time. This reuses the existing FL Connector
+   Piano Roll payload and always includes a MIDI backup in the export.
+7. Follow the focused FL guide, marking each step complete.
+8. Export the reconstruction ZIP from the download icon.
+
+Reconstruction is a faithful, editable interpretation of the uploaded audio.
+It does not recover Suno's hidden project, presets, seeds, or original mixer
+settings. See [Reconstruction Guide](docs/RECONSTRUCTION.md) for setup,
+limits, endpoints, and troubleshooting.
 
 ## FL Studio Apply Flow
 

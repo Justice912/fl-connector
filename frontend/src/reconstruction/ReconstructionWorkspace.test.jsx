@@ -35,6 +35,7 @@ function clientFor(projects = []) {
     listReconstructions: vi.fn().mockResolvedValue(projects),
     inventory: vi.fn().mockResolvedValue({ plugins: [], samples: [], scannedRoots: [] }),
     createReconstruction: vi.fn(),
+    updateReconstruction: vi.fn(),
     uploadReconstructionStems: vi.fn(),
     getReconstruction: vi.fn(),
     updateReconstructionPart: vi.fn(),
@@ -141,8 +142,11 @@ test('shows analysis evidence and supports overrides, approval, recommendations,
   const guideDone = { ...project, guideSteps: [{ ...guide, completed: true }] };
   const client = clientFor([project]);
   client.getReconstruction.mockResolvedValue(project);
-  client.updateReconstructionPart.mockResolvedValue(audioOverride);
-  client.approveReconstructionPattern.mockResolvedValue(approved);
+  client.updateReconstructionPart.mockImplementation((_projectId, _partId, body) => Promise.resolve({
+    ...audioOverride,
+    parts: [{ ...part, ...body }],
+  }));
+  client.approveReconstructionPattern.mockResolvedValue({ project: approved, payload: pattern.payload });
   client.updateGuideStep.mockResolvedValue(guideDone);
 
   render(<ReconstructionWorkspace client={client} />);
@@ -153,6 +157,12 @@ test('shows analysis evidence and supports overrides, approval, recommendations,
 
   fireEvent.change(screen.getByLabelText(/output mode for bass/i), { target: { value: 'audio' } });
   await waitFor(() => expect(client.updateReconstructionPart).toHaveBeenCalledWith('project-1', 'part-1', { outputMode: 'audio' }));
+
+  fireEvent.change(screen.getByLabelText(/role for bass/i), { target: { value: 'log_drum' } });
+  await waitFor(() => expect(client.updateReconstructionPart).toHaveBeenCalledWith('project-1', 'part-1', { role: 'log_drum' }));
+
+  fireEvent.change(screen.getByLabelText(/sound for bass/i), { target: { value: 'sound-1' } });
+  await waitFor(() => expect(client.updateReconstructionPart).toHaveBeenCalledWith('project-1', 'part-1', { selectedSoundId: 'sound-1' }));
 
   fireEvent.click(screen.getByRole('button', { name: /approve bass bars 1-8/i }));
   await waitFor(() => expect(client.approveReconstructionPattern).toHaveBeenCalledWith('project-1', 'part-1', 'pattern-1'));

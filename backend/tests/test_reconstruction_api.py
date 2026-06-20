@@ -150,6 +150,10 @@ def test_approve_pattern_writes_existing_fl_payload_and_exports_bundle(tmp_path:
     )
     store.save(project.with_changes(status="review", parts=[part], guideSteps=[guide]))
 
+    corrected = client.patch(
+        f"/api/reconstructions/{project.id}/parts/{part.id}/patterns/{pattern.id}",
+        json={"name": "Bass corrected", "placements": [1, 9]},
+    )
     approved = client.post(
         f"/api/reconstructions/{project.id}/parts/{part.id}/patterns/{pattern.id}/approve"
     )
@@ -159,13 +163,16 @@ def test_approve_pattern_writes_existing_fl_payload_and_exports_bundle(tmp_path:
     )
     exported = client.get(f"/api/reconstructions/{project.id}/export")
 
+    assert corrected.status_code == 200
+    assert corrected.json()["parts"][0]["patterns"][0]["name"] == "Bass corrected"
+    assert corrected.json()["parts"][0]["patterns"][0]["placements"] == [1, 9]
     assert approved.status_code == 200
     assert approved.json()["payload"]["status"] == "approved"
     assert detect_paths(tmp_path).payload_path.exists()
     assert guide_done.json()["guideSteps"][0]["completed"] is True
     assert exported.status_code == 200
     with ZipFile(BytesIO(exported.content)) as bundle:
-        assert "midi/Bass/Bass A.mid" in bundle.namelist()
+        assert "midi/Bass/Bass corrected.mid" in bundle.namelist()
 
 
 def test_delete_project_removes_it_from_listing(tmp_path: Path, monkeypatch):
