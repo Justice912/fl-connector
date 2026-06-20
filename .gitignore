@@ -1,0 +1,17 @@
+backend/.venv/
+backend/.data/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+.data/
+.analysis-worker/
+.tools/
+.superpowers/
+.qa/
+playwright-report/
+test-results/
+__pycache__/
+.pytest_cache/
+.coverage
+*.pyc
+*.log

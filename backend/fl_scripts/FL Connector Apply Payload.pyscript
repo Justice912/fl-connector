@@ -1,0 +1,70 @@
+import json
+import os
+
+import flpianoroll as flp
+
+
+def _payload_path():
+    return os.path.join(
+        os.path.expanduser("~"),
+        "Documents",
+        "Image-Line",
+        "FL Studio",
+        "Settings",
+        "Piano roll scripts",
+        "FL Connector",
+        "pending_payload.json",
+    )
+
+
+def _beat_to_ticks(value):
+    return int(round(float(value) * flp.score.PPQ))
+
+
+def _make_note(note_data):
+    note = flp.Note()
+    note.number = int(note_data["pitch"])
+    note.time = _beat_to_ticks(note_data["startBeats"])
+    note.length = max(1, _beat_to_ticks(note_data["durationBeats"]))
+    note.velocity = float(note_data.get("velocity", 0.82))
+    note.color = int(note_data.get("color", 0))
+    note.pan = float(note_data.get("pan", 0.5))
+    note.slide = bool(note_data.get("slide", False))
+    note.porta = bool(note_data.get("porta", False))
+    note.muted = bool(note_data.get("muted", False))
+    return note
+
+
+def createDialog():
+    form = flp.ScriptDialog(
+        "FL Connector Apply Payload",
+        "Applies the approved FL Connector note payload to this Piano Roll.",
+    )
+    form.AddInputCheckbox("Clear existing notes", False)
+    return form
+
+
+def apply(form):
+    path = _payload_path()
+    if not os.path.exists(path):
+        flp.Utils.ShowMessage("No approved FL Connector payload was found.")
+        return
+
+    with open(path, "r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+
+    notes = payload.get("notes", [])
+    if not notes:
+        flp.Utils.ShowMessage("The approved FL Connector payload has no notes.")
+        return
+
+    clear_mode = payload.get("clearMode", "none")
+    if bool(form.GetInputValue("Clear existing notes")) or clear_mode == "all":
+        flp.score.clearNotes(True)
+    elif clear_mode == "selected":
+        flp.score.clearNotes(False)
+
+    for note_data in notes:
+        flp.score.addNote(_make_note(note_data))
+
+    flp.Utils.ShowMessage("Applied %d FL Connector notes." % len(notes))
