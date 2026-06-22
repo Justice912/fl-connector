@@ -1150,6 +1150,25 @@ select {
 .inline-consent input,
 .rights-check input { width: 16px; min-height: 16px; }
 
+.setup-install-plan {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  border-top: 1px solid #2c3239;
+  padding-top: 10px;
+}
+
+.setup-install-plan span {
+  border-left: 2px solid #2dd4bf;
+  padding-left: 9px;
+}
+
+.setup-install-plan strong,
+.setup-install-plan small { display: block; }
+.setup-install-plan strong { color: #eef6f8; font-size: 12px; }
+.setup-install-plan small { margin-top: 2px; color: #91a0ad; font-size: 10px; }
+
 .rebuild-inline {
   width: auto;
   min-width: 0;

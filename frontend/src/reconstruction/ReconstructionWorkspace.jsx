@@ -103,11 +103,21 @@ function SetupBar({ setup, busy, onInstall }) {
       <span>{message}</span>
       <label className="inline-consent">
         <input type="checkbox" checked={approved} onChange={(event) => setApproved(event.target.checked)} />
-        Approve local install
+        Approve winget and local worker installation
       </label>
       <button className="secondary-button rebuild-inline" disabled={busy || !approved || !setup?.canInstall} onClick={() => onInstall(approved)}>
-        Install worker
+        Install prerequisites and worker
       </button>
+      {(setup?.installPlan ?? []).length > 0 && (
+        <div className="setup-install-plan" aria-label="Verified installation plan">
+          {setup.installPlan.map((item) => (
+            <span key={item.id}>
+              <strong>{item.name}</strong>
+              <small>{item.publisher} &middot; {item.source}</small>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

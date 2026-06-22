@@ -83,6 +83,33 @@ test('creates an ownership-confirmed project and uploads local stems', async () 
   expect(client.uploadReconstructionStems).toHaveBeenCalledWith('project-1', [file]);
 });
 
+test('requires consent before bootstrapping verified local analysis tools', async () => {
+  const client = clientFor();
+  client.analysisSetup.mockResolvedValue({
+    ...setup,
+    canInstall: true,
+    bootstrapMethod: 'winget',
+    installPlan: [
+      { id: 'Python.Python.3.11', name: 'Python 3.11', publisher: 'Python Software Foundation', source: 'winget' },
+      { id: 'Gyan.FFmpeg', name: 'FFmpeg Windows build', publisher: 'Gyan', source: 'winget' },
+    ],
+  });
+  client.installAnalysisWorker.mockResolvedValue({ ready: true, status: 'ready', checks: [] });
+
+  render(<ReconstructionWorkspace client={client} />);
+
+  await screen.findByRole('heading', { name: /start a reconstruction/i });
+  const install = screen.getByRole('button', { name: /install prerequisites and worker/i });
+  expect(install).toBeDisabled();
+  expect(screen.getByText(/python software foundation/i)).toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText(/approve winget and local worker installation/i));
+  expect(install).toBeEnabled();
+  fireEvent.click(install);
+
+  await waitFor(() => expect(client.installAnalysisWorker).toHaveBeenCalledWith(true));
+  expect(await screen.findByText(/local analysis worker ready/i)).toBeInTheDocument();
+});
+
 test('shows analysis evidence and supports overrides, approval, recommendations, and guide completion', async () => {
   const pattern = {
     id: 'pattern-1',
