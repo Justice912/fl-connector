@@ -124,6 +124,28 @@ def startup() -> None:
     STORE.event("server", "Connector backend started")
 
 
+def _review_status(data: dict[str, Any]) -> str:
+    parts = data.get("parts", [])
+    guide_steps = data.get("guideSteps", [])
+    parts_ready = bool(parts) and all(part.get("approved") for part in parts)
+    sounds_ready = all(
+        part.get("outputMode") != "midi" or bool(part.get("selectedSoundId"))
+        for part in parts
+    )
+    guide_ready = bool(guide_steps) and all(step.get("completed") for step in guide_steps)
+    return "approved" if parts_ready and sounds_ready and guide_ready else "review"
+
+
+def _with_current_review_status(project: ReconstructionProject) -> ReconstructionProject:
+    if project.status not in {"review", "approved"} or not project.parts:
+        return project
+    data = project.to_dict()
+    status = _review_status(data)
+    if status == project.status:
+        return project
+    return ReconstructionProject.from_dict({**data, "status": status})
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     paths = detect_paths()
@@ -315,13 +337,16 @@ def create_reconstruction(request: ReconstructionCreateRequest) -> dict[str, Any
 
 @app.get("/api/reconstructions")
 def list_reconstructions() -> list[dict[str, Any]]:
-    return [project.to_dict() for project in RECONSTRUCTION_STORE.list_projects()]
+    return [
+        _with_current_review_status(project).to_dict()
+        for project in RECONSTRUCTION_STORE.list_projects()
+    ]
 
 
 @app.get("/api/reconstructions/{project_id}")
 def get_reconstruction(project_id: str) -> dict[str, Any]:
     try:
-        return RECONSTRUCTION_STORE.get(project_id).to_dict()
+        return _with_current_review_status(RECONSTRUCTION_STORE.get(project_id)).to_dict()
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="reconstruction project not found") from exc
 
@@ -362,7 +387,7 @@ def patch_reconstruction(
     request: ReconstructionPatchRequest,
 ) -> dict[str, Any]:
     try:
-        project = RECONSTRUCTION_STORE.get(project_id)
+        project = _with_current_review_status(RECONSTRUCTION_STORE.get(project_id))
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="reconstruction project not found") from exc
     changes = request.model_dump(exclude_none=True)
@@ -450,7 +475,10 @@ def patch_reconstruction_part(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not changed:
         raise HTTPException(status_code=404, detail="reconstruction part not found")
-    return RECONSTRUCTION_STORE.save(project.with_changes(parts=parts)).to_dict()
+    data = project.to_dict()
+    data["parts"] = [part.to_dict() for part in parts]
+    data["status"] = _review_status(data)
+    return RECONSTRUCTION_STORE.save(ReconstructionProject.from_dict(data)).to_dict()
 
 
 @app.patch("/api/reconstructions/{project_id}/parts/{part_id}/patterns/{pattern_id}")
@@ -527,8 +555,7 @@ def approve_reconstruction_pattern(
             part["approved"] = all(
                 pattern["payload"]["status"] == "approved" for pattern in part["patterns"]
             )
-    if data["parts"] and all(part["approved"] for part in data["parts"]):
-        data["status"] = "approved"
+    data["status"] = _review_status(data)
     updated = RECONSTRUCTION_STORE.save(ReconstructionProject.from_dict(data))
     return {"project": updated.to_dict(), "payload": approved.to_dict()}
 
@@ -544,8 +571,7 @@ def approve_reconstruction_audio(project_id: str, part_id: str) -> dict[str, Any
     if selected is None or selected["outputMode"] != "audio":
         raise HTTPException(status_code=404, detail="audio reconstruction part not found")
     selected["approved"] = True
-    if data["parts"] and all(part["approved"] for part in data["parts"]):
-        data["status"] = "approved"
+    data["status"] = _review_status(data)
     return RECONSTRUCTION_STORE.save(ReconstructionProject.from_dict(data)).to_dict()
 
 
@@ -569,6 +595,7 @@ def patch_guide_step(
     if selected is None:
         raise HTTPException(status_code=404, detail="guide step not found")
     selected["completed"] = request.completed
+    data["status"] = _review_status(data)
     return RECONSTRUCTION_STORE.save(ReconstructionProject.from_dict(data)).to_dict()
 
 

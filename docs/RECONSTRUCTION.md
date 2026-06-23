@@ -54,6 +54,11 @@ Tempo or key corrections clear dependent analysis artifacts and require a new
 analysis. Pattern corrections reset that pattern to draft. A MIDI pattern is
 written to the existing FL payload only after approval.
 
+A reconstruction reaches `approved` only after all parts are approved, every
+MIDI part has a selected sound recommendation, and all FL guide steps are
+complete. Older saved projects with partial acceptance are displayed as
+`review` until those conditions are met.
+
 ## FL Studio Workflow
 
 1. Create the listed channels in Channel Rack order.

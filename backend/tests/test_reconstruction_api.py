@@ -12,6 +12,7 @@ from app.reconstruction_contracts import (
     GuideStep,
     PatternSlice,
     ReconstructedPart,
+    SoundMatch,
 )
 from app.reconstruction_store import ReconstructionStore, UploadCandidate
 from app.store import PayloadStore
@@ -173,6 +174,145 @@ def test_approve_pattern_writes_existing_fl_payload_and_exports_bundle(tmp_path:
     assert exported.status_code == 200
     with ZipFile(BytesIO(exported.content)) as bundle:
         assert "midi/Bass/Bass corrected.mid" in bundle.namelist()
+
+
+def test_reconstruction_status_waits_for_sound_selection_and_guide_completion(
+    tmp_path: Path, monkeypatch
+):
+    client = isolated_client(tmp_path, monkeypatch)
+    store = main.RECONSTRUCTION_STORE
+    project = store.create_project("Owned", rights_accepted=True)
+    project = store.add_uploads(
+        project.id,
+        [UploadCandidate(fileName="bass.wav", data=wav_bytes())],
+    )
+    payload = NotePayload.create(
+        title="Bass A",
+        sourcePrompt="Owned reconstruction",
+        genre="South African dance",
+        bpm=114,
+        key="G",
+        scale="minor",
+        bars=4,
+        notes=[Note(pitch=43, startBeats=0, durationBeats=1)],
+    )
+    pattern = PatternSlice.create(name="Bass A", startBar=1, payload=payload)
+    part = ReconstructedPart.create(
+        sourceStemId=project.stems[0].id,
+        name="Bass",
+        role="bass",
+        outputMode="midi",
+        confidence=0.9,
+        patterns=[pattern],
+    )
+    guide = GuideStep.from_dict(
+        {
+            "order": 1,
+            "title": "Open Piano Roll",
+            "area": "Piano Roll",
+            "action": "Open it",
+            "menuPath": "Channel Rack > Piano Roll",
+            "shortcut": "F7",
+            "imageAsset": "/guides/fl-2025/apply-payload.png",
+            "hotspot": {"x": 0.1, "y": 0.1, "width": 0.2, "height": 0.2},
+            "expectedState": "Piano Roll visible",
+        }
+    )
+    sound = SoundMatch.from_dict(
+        {
+            "id": "plugin:boobass",
+            "name": "BooBass",
+            "kind": "plugin",
+            "installed": True,
+            "source": "inventory",
+            "score": 1.0,
+            "reason": "Installed bass instrument.",
+        }
+    )
+    store.save(
+        project.with_changes(
+            status="review",
+            parts=[part],
+            guideSteps=[guide],
+            soundMatches=[sound],
+        )
+    )
+
+    approved = client.post(
+        f"/api/reconstructions/{project.id}/parts/{part.id}/patterns/{pattern.id}/approve"
+    )
+    sound_selected = client.patch(
+        f"/api/reconstructions/{project.id}/parts/{part.id}",
+        json={"selectedSoundId": sound.id},
+    )
+    guide_done = client.patch(
+        f"/api/reconstructions/{project.id}/guide/{guide.id}",
+        json={"completed": True},
+    )
+    guide_reopened = client.patch(
+        f"/api/reconstructions/{project.id}/guide/{guide.id}",
+        json={"completed": False},
+    )
+
+    assert approved.status_code == 200
+    assert approved.json()["project"]["status"] == "review"
+    assert sound_selected.json()["status"] == "review"
+    assert guide_done.json()["status"] == "approved"
+    assert guide_reopened.json()["status"] == "review"
+
+
+def test_reconstruction_reads_recalculate_stale_approval_status(tmp_path: Path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    store = main.RECONSTRUCTION_STORE
+    project = store.create_project("Owned", rights_accepted=True)
+    project = store.add_uploads(
+        project.id,
+        [UploadCandidate(fileName="bass.wav", data=wav_bytes())],
+    )
+    payload = NotePayload.create(
+        title="Bass A",
+        sourcePrompt="Owned reconstruction",
+        genre="South African dance",
+        bpm=114,
+        key="G",
+        scale="minor",
+        bars=4,
+        notes=[Note(pitch=43, startBeats=0, durationBeats=1)],
+    ).with_status("approved")
+    part = ReconstructedPart.create(
+        sourceStemId=project.stems[0].id,
+        name="Bass",
+        role="bass",
+        outputMode="midi",
+        confidence=0.9,
+        patterns=[PatternSlice.create(name="Bass A", startBar=1, payload=payload)],
+    )
+    guide = GuideStep.from_dict(
+        {
+            "order": 1,
+            "title": "Open Piano Roll",
+            "area": "Piano Roll",
+            "action": "Open it",
+            "menuPath": "Channel Rack > Piano Roll",
+            "shortcut": "F7",
+            "imageAsset": "/guides/fl-2025/apply-payload.png",
+            "hotspot": {"x": 0.1, "y": 0.1, "width": 0.2, "height": 0.2},
+            "expectedState": "Piano Roll visible",
+        }
+    )
+    store.save(
+        project.with_changes(
+            status="approved",
+            parts=[ReconstructedPart.from_dict({**part.to_dict(), "approved": True})],
+            guideSteps=[guide],
+        )
+    )
+
+    fetched = client.get(f"/api/reconstructions/{project.id}")
+    listed = client.get("/api/reconstructions")
+
+    assert fetched.json()["status"] == "review"
+    assert listed.json()[0]["status"] == "review"
 
 
 def test_delete_project_removes_it_from_listing(tmp_path: Path, monkeypatch):
