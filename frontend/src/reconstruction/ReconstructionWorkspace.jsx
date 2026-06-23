@@ -62,7 +62,7 @@ function acceptanceItems(project) {
       complete: missingSoundParts.length === 0,
       required: true,
       detail: missingSoundParts.length
-        ? `${missingSoundParts.length} MIDI part${missingSoundParts.length === 1 ? '' : 's'} needs a sound`
+        ? `${missingSoundParts.length} MIDI part${missingSoundParts.length === 1 ? ' needs a sound' : 's need sounds'}`
         : `${midiParts.length}/${midiParts.length} MIDI sounds selected`,
     },
     {

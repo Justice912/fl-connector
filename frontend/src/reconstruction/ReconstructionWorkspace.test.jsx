@@ -227,6 +227,13 @@ test('summarizes reconstruction acceptance blockers before final handoff', async
     approved: true,
     warnings: [],
   };
+  const secondPart = {
+    ...part,
+    id: 'part-2',
+    name: 'Synth',
+    role: 'melody',
+    instrumentHint: 'FLEX lead',
+  };
   const guide = {
     id: 'guide-1',
     order: 1,
@@ -243,7 +250,7 @@ test('summarizes reconstruction acceptance blockers before final handoff', async
   const project = draftProject({
     status: 'review',
     analysisSummary: { bpm: 117.45, key: 'F', scale: 'minor', durationSeconds: 214, bpmConfidence: 0.98, keyConfidence: 0.65 },
-    parts: [part],
+    parts: [part, secondPart],
     soundMatches: [{ id: 'sound-1', name: 'BooBass', installed: true, score: 0.91, source: 'inventory', reason: 'Installed bass instrument.' }],
     guideSteps: [guide],
   });
@@ -252,8 +259,8 @@ test('summarizes reconstruction acceptance blockers before final handoff', async
   render(<ReconstructionWorkspace client={client} />);
 
   expect(await screen.findByRole('heading', { name: /acceptance gate/i })).toBeInTheDocument();
-  expect(screen.getByText(/1\/1 parts approved/i)).toBeInTheDocument();
-  expect(screen.getByText(/1 MIDI part needs a sound/i)).toBeInTheDocument();
+  expect(screen.getByText(/2\/2 parts approved/i)).toBeInTheDocument();
+  expect(screen.getByText(/2 MIDI parts need sounds/i)).toBeInTheDocument();
   expect(screen.getByText(/0\/1 guide steps complete/i)).toBeInTheDocument();
   expect(screen.getByText(/Key confidence 65%/i)).toBeInTheDocument();
 });
