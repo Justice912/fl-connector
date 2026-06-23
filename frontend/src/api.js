@@ -1,4 +1,8 @@
-const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+export function normalizeApiBase(value) {
+  return (value ?? '').trim().replace(/\/+$/, '');
+}
+
+const API_BASE = normalizeApiBase(import.meta.env.VITE_API_BASE);
 
 async function request(path, options = {}) {
   const headers = { ...(options.headers ?? {}) };

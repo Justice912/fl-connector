@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -37,11 +38,21 @@ STORE = PayloadStore(APP_ROOT / ".data")
 RECONSTRUCTION_STORE = ReconstructionStore(APP_ROOT / ".data" / "reconstructions")
 CATALOG_PATH = APP_ROOT / "backend" / "app" / "recommendation_catalog.json"
 INVENTORY_ROOTS_PATH = APP_ROOT / ".data" / "inventory_roots.json"
+DEFAULT_CORS_ORIGINS = ("http://127.0.0.1:5173", "http://localhost:5173")
+
+
+def _parse_cors_origins(value: str | None) -> list[str]:
+    origins = list(DEFAULT_CORS_ORIGINS)
+    for raw_origin in (value or "").split(","):
+        origin = raw_origin.strip().rstrip("/")
+        if origin and origin not in origins:
+            origins.append(origin)
+    return origins
 
 app = FastAPI(title="FL Connector", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+    allow_origins=_parse_cors_origins(os.environ.get("FL_CONNECTOR_CORS_ORIGINS")),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

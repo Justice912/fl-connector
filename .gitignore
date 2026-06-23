@@ -3,6 +3,10 @@ backend/.data/
 frontend/node_modules/
 frontend/dist/
 frontend/coverage/
+frontend/.env.local
+frontend/.env.*.local
+backend/.env
+backend/.env.local
 .data/
 .analysis-worker/
 .tools/

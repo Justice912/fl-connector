@@ -44,6 +44,36 @@ npm run dev -- --host 127.0.0.1 --port 5173
 
 Then open `http://127.0.0.1:5173`.
 
+## Deployed Frontend API Base
+
+Local development can leave `VITE_API_BASE` empty because the Vite dev server
+proxies `/api` to the local backend. A deployed static frontend must be built
+with a browser-reachable API origin:
+
+```powershell
+cd "C:\Users\HP\Vocals APP\fl-connector\frontend"
+vercel env add VITE_API_BASE production
+vercel env add VITE_API_BASE preview
+vercel env add VITE_API_BASE development
+vercel deploy . -y
+```
+
+Use `http://127.0.0.1:8765` when each Vercel prompt asks for the value. For
+Preview, leave the Git branch prompt empty unless you want a branch-specific
+API base.
+
+When the deployed frontend points at the local backend, start the backend with
+the deployed frontend origins in `FL_CONNECTOR_CORS_ORIGINS`:
+
+```powershell
+$env:FL_CONNECTOR_CORS_ORIGINS = "https://your-preview.vercel.app,https://your-production-alias.vercel.app"
+cd "C:\Users\HP\Vocals APP\fl-connector\backend"
+.\.venv\Scripts\python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8765
+```
+
+Use the hosted API origin instead of `http://127.0.0.1:8765` when the backend is
+deployed somewhere reachable from the browser.
+
 ## Rebuild A Stem Export
 
 1. Open `Rebuild` in the left navigation.
