@@ -197,3 +197,63 @@ test('shows analysis evidence and supports overrides, approval, recommendations,
   fireEvent.click(screen.getByRole('button', { name: /mark step complete/i }));
   await waitFor(() => expect(client.updateGuideStep).toHaveBeenCalledWith('project-1', 'guide-1', true));
 });
+
+test('summarizes reconstruction acceptance blockers before final handoff', async () => {
+  const pattern = {
+    id: 'pattern-1',
+    name: 'Bass bars 1-8',
+    startBar: 1,
+    bars: 8,
+    placements: [1],
+    payload: {
+      status: 'approved',
+      bars: 8,
+      bpm: 114,
+      key: 'F',
+      scale: 'minor',
+      notes: [{ pitch: 43, startBeats: 0, durationBeats: 1, velocity: 0.9 }],
+    },
+  };
+  const part = {
+    id: 'part-1',
+    name: 'Bass',
+    role: 'bass',
+    outputMode: 'midi',
+    confidence: 0.76,
+    requiresReview: true,
+    instrumentHint: 'BooBass or FLEX bass',
+    patterns: [pattern],
+    selectedSoundId: null,
+    approved: true,
+    warnings: [],
+  };
+  const guide = {
+    id: 'guide-1',
+    order: 1,
+    title: 'Apply the MIDI pattern',
+    area: 'Piano Roll',
+    action: 'Open the selected channel Piano Roll and apply the approved pattern.',
+    menuPath: 'Tools > Scripts > FL Connector Apply Payload',
+    shortcut: null,
+    imageAsset: '/guides/fl-2025/apply-payload.png',
+    hotspot: { x: 0.08, y: 0.08, width: 0.18, height: 0.12 },
+    expectedState: 'Notes appear in the Piano Roll.',
+    completed: false,
+  };
+  const project = draftProject({
+    status: 'review',
+    analysisSummary: { bpm: 117.45, key: 'F', scale: 'minor', durationSeconds: 214, bpmConfidence: 0.98, keyConfidence: 0.65 },
+    parts: [part],
+    soundMatches: [{ id: 'sound-1', name: 'BooBass', installed: true, score: 0.91, source: 'inventory', reason: 'Installed bass instrument.' }],
+    guideSteps: [guide],
+  });
+  const client = clientFor([project]);
+
+  render(<ReconstructionWorkspace client={client} />);
+
+  expect(await screen.findByRole('heading', { name: /acceptance gate/i })).toBeInTheDocument();
+  expect(screen.getByText(/1\/1 parts approved/i)).toBeInTheDocument();
+  expect(screen.getByText(/1 MIDI part needs a sound/i)).toBeInTheDocument();
+  expect(screen.getByText(/0\/1 guide steps complete/i)).toBeInTheDocument();
+  expect(screen.getByText(/Key confidence 65%/i)).toBeInTheDocument();
+});

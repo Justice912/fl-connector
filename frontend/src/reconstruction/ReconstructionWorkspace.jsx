@@ -38,6 +38,75 @@ function Confidence({ value, requiresReview }) {
   );
 }
 
+function acceptanceItems(project) {
+  const parts = project.parts ?? [];
+  const guideSteps = project.guideSteps ?? [];
+  const midiParts = parts.filter((part) => part.outputMode === 'midi');
+  const approvedParts = parts.filter((part) => part.approved);
+  const missingSoundParts = midiParts.filter((part) => !part.selectedSoundId);
+  const completedGuideSteps = guideSteps.filter((step) => step.completed);
+  const keyConfidence = project.analysisSummary?.keyConfidence;
+  const keyPercent = typeof keyConfidence === 'number' ? Math.round(keyConfidence * 100) : null;
+  const keyName = project.analysisSummary ? `${project.analysisSummary.key} ${project.analysisSummary.scale}` : 'not detected';
+  return [
+    {
+      id: 'parts',
+      label: 'Parts approved',
+      complete: parts.length > 0 && approvedParts.length === parts.length,
+      required: true,
+      detail: `${approvedParts.length}/${parts.length} parts approved`,
+    },
+    {
+      id: 'sounds',
+      label: 'Sound choices',
+      complete: missingSoundParts.length === 0,
+      required: true,
+      detail: missingSoundParts.length
+        ? `${missingSoundParts.length} MIDI part${missingSoundParts.length === 1 ? '' : 's'} needs a sound`
+        : `${midiParts.length}/${midiParts.length} MIDI sounds selected`,
+    },
+    {
+      id: 'guide',
+      label: 'FL walkthrough',
+      complete: guideSteps.length > 0 && completedGuideSteps.length === guideSteps.length,
+      required: true,
+      detail: `${completedGuideSteps.length}/${guideSteps.length} guide steps complete`,
+    },
+    {
+      id: 'key',
+      label: 'Key check',
+      complete: keyPercent === null || keyPercent >= 80,
+      required: false,
+      detail: keyPercent === null
+        ? 'Key confidence not available'
+        : `Key confidence ${keyPercent}% for ${keyName}`,
+    },
+  ];
+}
+
+function AcceptanceGate({ project }) {
+  if (!project.analysisSummary && project.parts.length === 0 && project.guideSteps.length === 0) return null;
+  const items = acceptanceItems(project);
+  const openRequired = items.filter((item) => item.required && !item.complete).length;
+  return (
+    <section className="acceptance-gate">
+      <header>
+        <div><p>Final handoff</p><h2>Acceptance gate</h2></div>
+        <span className={`acceptance-state ${openRequired ? 'open' : 'ready'}`}>{openRequired ? `${openRequired} open` : 'Ready'}</span>
+      </header>
+      <div className="acceptance-grid">
+        {items.map((item) => (
+          <article className={item.complete ? 'complete' : item.required ? 'open' : 'review'} key={item.id}>
+            <span>{item.complete ? 'Ready' : item.required ? 'Open' : 'Review'}</span>
+            <strong>{item.label}</strong>
+            <p>{item.detail}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function MiniPianoRoll({ pattern }) {
   const notes = pattern?.payload?.notes ?? [];
   const totalBeats = Math.max(4, (pattern?.bars ?? 1) * 4);
@@ -474,6 +543,7 @@ export default function ReconstructionWorkspace({ client = api }) {
             onAnalyze={() => run(async () => adopt(await (project.status === 'error' ? client.retryReconstruction(project.id) : client.analyzeReconstruction(project.id))))}
           />
           <AnalysisHeader project={project} busy={busy} onCorrect={(values) => run(async () => adopt(await client.updateReconstruction(project.id, values)))} />
+          <AcceptanceGate project={project} />
           <div className="rebuild-split">
             <EvidencePane project={project} client={client} busy={busy} onPatchPart={(partId, values) => run(async () => adopt(await client.updateReconstructionPart(project.id, partId, values)))} />
             <BlueprintPane project={project} client={client} busy={busy} onProjectChange={adopt} />

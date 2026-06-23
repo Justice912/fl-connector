@@ -59,6 +59,10 @@ MIDI part has a selected sound recommendation, and all FL guide steps are
 complete. Older saved projects with partial acceptance are displayed as
 `review` until those conditions are met.
 
+The Rebuild workspace includes an acceptance gate panel that summarizes part
+approval, sound choices, FL walkthrough completion, and detected-key confidence
+before final handoff.
+
 ## FL Studio Workflow
 
 1. Create the listed channels in Channel Rack order.
