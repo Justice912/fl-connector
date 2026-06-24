@@ -281,7 +281,7 @@ function BridgePanel({ bridge, setupPlan, busy, onRefresh, onRefreshSetup, onIns
   );
 }
 
-export function SongDraftPanel({ song, selectedPartId, onSelectPart, onExportSong, onExportPart }) {
+export function SongDraftPanel({ song, selectedPartId, busy, onSelectPart, onExportSong, onExportPart }) {
   if (!song) {
     return (
       <section className="panel song-panel">
@@ -307,7 +307,7 @@ export function SongDraftPanel({ song, selectedPartId, onSelectPart, onExportSon
         <Layers3 size={20} aria-hidden="true" />
       </div>
       <div className="song-actions">
-        <button type="button" className="secondary-button" onClick={onExportSong}>
+        <button type="button" className="secondary-button" disabled={busy} onClick={onExportSong}>
           <Download size={18} />
           Download Song MIDI (all parts)
         </button>
@@ -333,6 +333,7 @@ export function SongDraftPanel({ song, selectedPartId, onSelectPart, onExportSon
               type="button"
               className="icon-button"
               aria-label={`Download ${part.patternName} MIDI`}
+              disabled={busy}
               onClick={() => onExportPart(part)}
             >
               <Download size={16} />
@@ -579,6 +580,7 @@ function App() {
         <SongDraftPanel
           song={song}
           selectedPartId={selectedPartId}
+          busy={busy}
           onSelectPart={(part) => {
             setSelectedPartId(part.id);
             setPayload(part.payload);

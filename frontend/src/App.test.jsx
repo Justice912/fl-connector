@@ -26,6 +26,7 @@ test('song panel triggers a full-song MIDI export', () => {
     <SongDraftPanel
       song={sampleSong()}
       selectedPartId=""
+      busy={false}
       onSelectPart={() => {}}
       onExportSong={onExportSong}
       onExportPart={() => {}}
@@ -41,6 +42,7 @@ test('song panel triggers a per-part MIDI export', () => {
     <SongDraftPanel
       song={sampleSong()}
       selectedPartId=""
+      busy={false}
       onSelectPart={() => {}}
       onExportSong={() => {}}
       onExportPart={onExportPart}
@@ -48,4 +50,19 @@ test('song panel triggers a per-part MIDI export', () => {
   );
   fireEvent.click(screen.getByRole('button', { name: /download fpc bounce drums midi/i }));
   expect(onExportPart).toHaveBeenCalledTimes(1);
+});
+
+test('export buttons are disabled while busy', () => {
+  render(
+    <SongDraftPanel
+      song={sampleSong()}
+      selectedPartId=""
+      busy={true}
+      onSelectPart={() => {}}
+      onExportSong={() => {}}
+      onExportPart={() => {}}
+    />,
+  );
+  expect(screen.getByRole('button', { name: /download song midi/i }).disabled).toBe(true);
+  expect(screen.getByRole('button', { name: /download fpc bounce drums midi/i }).disabled).toBe(true);
 });
