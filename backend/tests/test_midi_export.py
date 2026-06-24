@@ -91,3 +91,14 @@ def test_payload_to_midi_round_trips_notes_and_ticks():
     lowest_start = min(note.startBeats for note in payload.notes)
     ticks = sorted(note[0] for note in parsed["tracks"][1]["notes"])
     assert ticks[0] == round(lowest_start * 96)
+
+
+def test_muted_notes_are_excluded():
+    from app.contracts import Note
+    from app.midi_export import _note_events
+
+    live = Note(60, 0.0, 1.0, 0.8)
+    muted = Note(62, 0.0, 1.0, 0.8, muted=True)
+    pitches = {event[3] for event in _note_events([live, muted], 0)}
+    assert 60 in pitches
+    assert 62 not in pitches

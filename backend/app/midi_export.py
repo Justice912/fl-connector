@@ -19,6 +19,8 @@ def _vlq(value: int) -> bytes:
 def _note_events(notes: list[Note], channel: int) -> list[tuple[int, int, int, int, int]]:
     events: list[tuple[int, int, int, int, int]] = []
     for note in notes:
+        if note.muted:
+            continue
         start = max(0, round(note.startBeats * PPQ))
         duration = max(1, round(note.durationBeats * PPQ))
         pitch = max(0, min(127, int(note.pitch)))
@@ -39,7 +41,7 @@ def _track_chunk(body: bytes) -> bytes:
 
 
 def _encode_track(events: list[tuple[int, int, int, int, int]], name: str) -> bytes:
-    name_bytes = name.encode("utf-8", "replace")[:127]
+    name_bytes = name[:127].encode("utf-8", "replace")
     body = bytearray()
     body += _vlq(0) + _meta(0x03, name_bytes)
     previous_tick = 0
@@ -51,7 +53,7 @@ def _encode_track(events: list[tuple[int, int, int, int, int]], name: str) -> by
 
 
 def _conductor_track(title: str, bpm: int) -> bytes:
-    title_bytes = title.encode("utf-8", "replace")[:127]
+    title_bytes = title[:127].encode("utf-8", "replace")
     tempo = round(60_000_000 / bpm)
     body = bytearray()
     body += _vlq(0) + _meta(0x03, title_bytes)
@@ -75,6 +77,7 @@ def song_to_midi(draft: SongDraft) -> bytes:
     tracks = [_conductor_track(draft.title, draft.bpm)]
     ordered = sorted(draft.parts, key=lambda part: part.applyOrder)
     for index, part in enumerate(ordered):
+        # channels 0-15 — correct for up to 16 parts; beyond that they wrap
         events = _note_events(part.payload.notes, index % 16)
         tracks.append(_encode_track(events, part.patternName))
     return _header(len(tracks)) + b"".join(tracks)
