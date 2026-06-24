@@ -39,9 +39,17 @@ def test_export_payload_midi_returns_midi_file(tmp_path: Path, monkeypatch):
 
     assert response.status_code == 200
     assert response.content[:4] == b"MThd"
+    assert response.headers["content-type"] == "audio/midi"
+    assert ".mid" in response.headers["content-disposition"]
 
 
 def test_export_song_midi_unknown_id_returns_404(tmp_path: Path, monkeypatch):
     client = isolated_client(tmp_path, monkeypatch)
     response = client.get("/api/songs/does-not-exist/export-midi")
+    assert response.status_code == 404
+
+
+def test_export_payload_midi_unknown_id_returns_404(tmp_path: Path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    response = client.get("/api/payloads/does-not-exist/export-midi")
     assert response.status_code == 404
