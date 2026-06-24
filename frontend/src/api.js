@@ -53,6 +53,8 @@ export const api = {
   bridgeSetup: () => request('/api/bridge/setup'),
   installBridgeScripts: (body = {}) => request('/api/bridge/setup/install-scripts', { method: 'POST', body: JSON.stringify(body) }),
   events: () => request('/api/events'),
+  exportSongMidi: (id) => download(`/api/songs/${id}/export-midi`, `song-${id}.mid`),
+  exportPayloadMidi: (id) => download(`/api/payloads/${id}/export-midi`, `part-${id}.mid`),
   analysisSetup: () => request('/api/analysis/setup'),
   installAnalysisWorker: (approved) => request('/api/analysis/setup/install', { method: 'POST', body: JSON.stringify({ approved }) }),
   listReconstructions: () => request('/api/reconstructions'),

@@ -281,7 +281,7 @@ function BridgePanel({ bridge, setupPlan, busy, onRefresh, onRefreshSetup, onIns
   );
 }
 
-function SongDraftPanel({ song, selectedPartId, onSelectPart }) {
+export function SongDraftPanel({ song, selectedPartId, onSelectPart, onExportSong, onExportPart }) {
   if (!song) {
     return (
       <section className="panel song-panel">
@@ -306,19 +306,38 @@ function SongDraftPanel({ song, selectedPartId, onSelectPart }) {
         </div>
         <Layers3 size={20} aria-hidden="true" />
       </div>
+      <div className="song-actions">
+        <button type="button" className="secondary-button" onClick={onExportSong}>
+          <Download size={18} />
+          Download Song MIDI (all parts)
+        </button>
+        <span className="song-hint">
+          Drag the .mid into the FL Studio Playlist or onto a Channel Rack slot — each track
+          becomes its own channel/pattern.
+        </span>
+      </div>
       <div className="part-list">
         {song.parts.map((part) => (
-          <button
-            type="button"
-            className={`part-row ${part.id === selectedPartId ? 'active' : ''}`}
-            key={part.id}
-            onClick={() => onSelectPart(part)}
-          >
-            <span>{part.applyOrder}</span>
-            <strong>{part.patternName}</strong>
-            <em>{part.pluginHint}</em>
-            <small>{part.payload.notes.length} notes</small>
-          </button>
+          <div className="part-row-wrap" key={part.id}>
+            <button
+              type="button"
+              className={`part-row ${part.id === selectedPartId ? 'active' : ''}`}
+              onClick={() => onSelectPart(part)}
+            >
+              <span>{part.applyOrder}</span>
+              <strong>{part.patternName}</strong>
+              <em>{part.pluginHint}</em>
+              <small>{part.payload.notes.length} notes</small>
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={`Download ${part.patternName} MIDI`}
+              onClick={() => onExportPart(part)}
+            >
+              <Download size={16} />
+            </button>
+          </div>
         ))}
       </div>
       <div className="arrangement-strip" aria-label="Arrangement guide">
@@ -565,6 +584,14 @@ function App() {
             setPayload(part.payload);
             setMessage(`Selected ${part.patternName}.`);
           }}
+          onExportSong={() => runTask(async () => {
+            await api.exportSongMidi(song.id);
+            setMessage('Song MIDI exported. Drag the .mid into FL Studio.');
+          }, { adoptCurrent: false })}
+          onExportPart={(part) => runTask(async () => {
+            await api.exportPayloadMidi(part.payload.id);
+            setMessage(`Exported ${part.patternName} MIDI.`);
+          }, { adoptCurrent: false })}
         />
 
         <MasteringPanel

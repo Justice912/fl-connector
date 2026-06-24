@@ -1478,3 +1478,25 @@ select {
   .recommendation-list article { grid-template-columns: 80px minmax(0, 1fr); }
   .recommendation-list a { grid-column: 2; }
 }
+
+.song-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.song-hint {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.part-row-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.part-row-wrap .part-row {
+  flex: 1;
+}
