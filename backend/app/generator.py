@@ -55,6 +55,17 @@ def infer_title(prompt: str, genre: str) -> str:
     return f"{genre} note draft"
 
 
+def genre_family(genre: str) -> str:
+    lowered = genre.strip().lower()
+    if "amapiano" in lowered:
+        return "amapiano"
+    if "afro" in lowered:
+        return "afro"
+    if "hip" in lowered or "trap" in lowered:
+        return "hiphop"
+    return "amapiano"
+
+
 def generate_payload(
     *,
     prompt: str,
@@ -66,9 +77,10 @@ def generate_payload(
 ) -> NotePayload:
     key = normalize_key(key)
     scale = infer_scale(prompt, scale)
-    if "afro" in genre.lower():
+    family = genre_family(genre)
+    if family == "afro":
         return _generate_afro_payload(prompt, genre, bpm, key, scale, bars)
-    if "hip" in genre.lower() or "trap" in genre.lower():
+    if family == "hiphop":
         return _generate_hiphop_payload(prompt, genre, bpm, key, scale, bars)
     return _generate_amapiano_payload(prompt, genre, bpm, key, scale, bars)
 
@@ -84,36 +96,10 @@ def generate_song_draft(
 ) -> SongDraft:
     key = normalize_key(key)
     scale = infer_scale(prompt, scale)
-    if "afro" not in genre.lower() and "hip" not in genre.lower():
+    family = genre_family(genre)
+    if family == "amapiano":
         return _generate_amapiano_song(prompt, genre, bpm, key, scale, bars)
-
-    parts = [
-        SongPart.create(
-            role="melody",
-            patternName=f"{genre} main motif",
-            pluginHint="FLEX - pluck, keys, or guitar preset",
-            applyOrder=1,
-            payload=generate_payload(
-                prompt=prompt,
-                genre=genre,
-                bpm=bpm,
-                key=key,
-                scale=scale,
-                bars=bars,
-            ),
-        )
-    ]
-    return SongDraft.create(
-        title=f"{genre} song draft",
-        sourcePrompt=prompt,
-        genre=genre,
-        bpm=bpm,
-        key=key,
-        scale=scale,
-        bars=bars,
-        parts=parts,
-        arrangement=_arrangement(bars),
-    )
+    return _generate_generic_song(family, prompt, genre, bpm, key, scale, bars)
 
 
 def _scale_notes(key: str, scale: str) -> list[int]:
@@ -329,7 +315,11 @@ def _amapiano_melody(key: str, scale: str, bars: int) -> list[Note]:
     return notes
 
 
-def _arrangement(bars: int) -> list[ArrangementSection]:
+def _arrangement(
+    bars: int,
+    roles: tuple[str, ...] | list[str] = ("drums", "bass", "chords", "log_drum", "melody"),
+) -> list[ArrangementSection]:
+    available = set(roles)
     if bars >= 16:
         lengths = [4, 4, 4, bars - 12]
     elif bars >= 8:
@@ -339,12 +329,17 @@ def _arrangement(bars: int) -> list[ArrangementSection]:
     starts = [1]
     for length in lengths[:-1]:
         starts.append(starts[-1] + length)
-    return [
-        ArrangementSection("Intro", starts[0], lengths[0], ["chords", "drums"]),
-        ArrangementSection("Groove", starts[1], lengths[1], ["drums", "bass", "chords"]),
-        ArrangementSection("Drop", starts[2], lengths[2], ["drums", "bass", "chords", "log_drum"]),
-        ArrangementSection("Hook", starts[3], lengths[3], ["drums", "bass", "chords", "log_drum", "melody"]),
+    plan = [
+        ("Intro", ["chords", "drums"]),
+        ("Groove", ["drums", "bass", "chords"]),
+        ("Drop", ["drums", "bass", "chords", "log_drum"]),
+        ("Hook", ["drums", "bass", "chords", "log_drum", "melody"]),
     ]
+    sections: list[ArrangementSection] = []
+    for index, (name, parts) in enumerate(plan):
+        active = [part for part in parts if part in available] or sorted(available)
+        sections.append(ArrangementSection(name, starts[index], lengths[index], active))
+    return sections
 
 
 def _generate_amapiano_payload(
@@ -419,55 +414,156 @@ def _generate_amapiano_payload(
     )
 
 
-def _generate_afro_payload(
-    prompt: str,
-    genre: str,
-    bpm: int,
-    key: str,
-    scale: str,
-    bars: int,
-) -> NotePayload:
+def _afro_melody(key: str, scale: str, bars: int) -> list[Note]:
     pool = _scale_notes(key, "major" if scale == "major" else scale)
     root = pool[0]
-    notes: list[Note] = []
     motif = [(0.0, 7), (0.5, 9), (1.25, 4), (1.75, 7), (2.5, 2), (3.25, 4)]
+    return [
+        Note(root + degree + 12, bar * 4 + offset, 0.42, 0.74, 3)
+        for bar in range(bars)
+        for offset, degree in motif
+    ]
+
+
+def _hiphop_melody(key: str, scale: str, bars: int) -> list[Note]:
+    pool = _scale_notes(key, scale)
+    root = pool[0]
+    motif = [(0.0, 0), (0.75, 3), (1.5, 7), (2.5, 10), (3.0, 7)]
+    return [
+        Note(root + interval + 12, bar * 4 + offset, 0.5, 0.72, 4)
+        for bar in range(bars)
+        for offset, interval in motif
+    ]
+
+
+def _generic_drums(bars: int) -> list[Note]:
+    notes: list[Note] = []
     for bar in range(bars):
-        for offset, degree in motif:
-            notes.append(Note(root + degree + 12, bar * 4 + offset, 0.42, 0.74, 3))
-    return NotePayload.create(
+        base = bar * 4
+        for beat in range(4):
+            notes.append(Note(36, base + beat, 0.2, 0.9, 5))
+        for beat in (1, 3):
+            notes.append(Note(39, base + beat, 0.16, 0.7, 3))
+        for step in range(8):
+            notes.append(Note(42, base + step * 0.5, 0.1, 0.5 if step % 2 else 0.6, 2))
+    return notes
+
+
+def _generic_bass(key: str, scale: str, bars: int) -> list[Note]:
+    pool = _scale_notes(key, scale)
+    root = pool[0] - 12
+    fifth = pool[4] - 12
+    notes: list[Note] = []
+    for bar in range(bars):
+        base = bar * 4
+        notes.append(Note(root, base, 0.9, 0.74, 5))
+        notes.append(Note(root, base + 1.5, 0.5, 0.6, 5))
+        notes.append(Note(fifth, base + 2.5, 0.5, 0.64, 5))
+        notes.append(Note(root, base + 3.5, 0.4, 0.56, 5))
+    return notes
+
+
+_FAMILY_MELODY = {"afro": _afro_melody, "hiphop": _hiphop_melody}
+_FAMILY_PATTERN_NAMES = {
+    "afro": {
+        "drums": "Afrobeats kit groove",
+        "bass": "Rolling afro bass",
+        "chords": "Bright afro chords",
+        "melody": "Afro lead motif",
+    },
+    "hiphop": {
+        "drums": "Boom-bap kit",
+        "bass": "808 sub bass",
+        "chords": "Sampled chord stab",
+        "melody": "Hip-hop lead hook",
+    },
+}
+_FAMILY_PLUGIN_HINTS = {
+    "afro": {
+        "drums": "FPC - afro kit",
+        "bass": "3xOsc or FLEX bass, keep centered",
+        "chords": "FLEX keys or pad",
+        "melody": "FLEX pluck or marimba preset",
+    },
+    "hiphop": {
+        "drums": "FPC - boom-bap kit",
+        "bass": "3xOsc 808 sub",
+        "chords": "FLEX keys or sampler stab",
+        "melody": "FLEX lead preset",
+    },
+}
+
+
+def _generate_afro_payload(
+    prompt: str, genre: str, bpm: int, key: str, scale: str, bars: int
+) -> NotePayload:
+    return _payload(
         title=infer_title(prompt, genre),
-        sourcePrompt=prompt,
+        prompt=prompt,
         genre=genre,
         bpm=bpm,
         key=key,
         scale=scale,
         bars=bars,
-        notes=notes,
+        notes=_afro_melody(key, scale, bars),
     )
 
 
 def _generate_hiphop_payload(
-    prompt: str,
-    genre: str,
-    bpm: int,
-    key: str,
-    scale: str,
-    bars: int,
+    prompt: str, genre: str, bpm: int, key: str, scale: str, bars: int
 ) -> NotePayload:
-    pool = _scale_notes(key, scale)
-    root = pool[0]
-    notes: list[Note] = []
-    motif = [(0.0, 0), (0.75, 3), (1.5, 7), (2.5, 10), (3.0, 7)]
-    for bar in range(bars):
-        for offset, interval in motif:
-            notes.append(Note(root + interval + 12, bar * 4 + offset, 0.5, 0.72, 4))
-    return NotePayload.create(
+    return _payload(
         title=infer_title(prompt, genre),
+        prompt=prompt,
+        genre=genre,
+        bpm=bpm,
+        key=key,
+        scale=scale,
+        bars=bars,
+        notes=_hiphop_melody(key, scale, bars),
+    )
+
+
+def _generate_generic_song(
+    family: str, prompt: str, genre: str, bpm: int, key: str, scale: str, bars: int
+) -> SongDraft:
+    names = _FAMILY_PATTERN_NAMES[family]
+    hints = _FAMILY_PLUGIN_HINTS[family]
+    melody_builder = _FAMILY_MELODY[family]
+    role_notes = {
+        "drums": _generic_drums(bars),
+        "bass": _generic_bass(key, scale, bars),
+        "chords": _amapiano_chords(key, scale, bars),
+        "melody": melody_builder(key, scale, bars),
+    }
+    roles = ["drums", "bass", "chords", "melody"]
+    parts = [
+        SongPart.create(
+            role=role,
+            patternName=names[role],
+            pluginHint=hints[role],
+            applyOrder=index + 1,
+            payload=_payload(
+                title=names[role],
+                prompt=f"{prompt} | {role}",
+                genre=genre,
+                bpm=bpm,
+                key=key,
+                scale=scale,
+                bars=bars,
+                notes=role_notes[role],
+            ),
+        )
+        for index, role in enumerate(roles)
+    ]
+    return SongDraft.create(
+        title=f"{genre} full draft",
         sourcePrompt=prompt,
         genre=genre,
         bpm=bpm,
         key=key,
         scale=scale,
         bars=bars,
-        notes=notes,
+        parts=parts,
+        arrangement=_arrangement(bars, roles),
     )

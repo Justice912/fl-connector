@@ -1,4 +1,6 @@
-from app.generator import generate_payload, generate_song_draft
+import pytest
+
+from app.generator import generate_payload, generate_song_draft, genre_family
 
 
 def test_amapiano_generation_is_valid_and_deterministic():
@@ -29,3 +31,20 @@ def test_song_draft_creates_applyable_parts():
     assert all(part.payload.target == "current_piano_roll" for part in draft.parts)
     assert all(part.payload.status == "draft" for part in draft.parts)
     assert sum(len(part.payload.notes) for part in draft.parts) > 100
+
+
+@pytest.mark.parametrize("genre", ["Amapiano", "Afrobeats", "Afrohouse", "Hip Hop", "Trap"])
+def test_song_draft_parts_and_arrangement_are_coherent(genre):
+    draft = generate_song_draft(prompt=f"Create a {genre} song", genre=genre, bars=8)
+    roles = {part.role for part in draft.parts}
+    assert len(draft.parts) >= 4
+    assert len(draft.arrangement) == 4
+    for section in draft.arrangement:
+        assert section.activeParts, "arrangement section must list active parts"
+        assert set(section.activeParts) <= roles
+
+
+def test_trap_uses_same_family_for_single_and_song():
+    assert genre_family("Trap") == genre_family("Hip Hop") == "hiphop"
+    draft = generate_song_draft(prompt="dark trap song", genre="Trap")
+    assert {part.role for part in draft.parts} == {"drums", "bass", "chords", "melody"}
