@@ -52,6 +52,7 @@ def _parse_cors_origins(value: str | None) -> list[str]:
             origins.append(origin)
     return origins
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     STORE.ensure()
