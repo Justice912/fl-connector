@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from .contracts import MasteringPlan, NotePayload, SongDraft
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
 
 
 class PayloadStore:
@@ -25,7 +33,7 @@ class PayloadStore:
     def save_draft(self, payload: NotePayload) -> NotePayload:
         self.ensure()
         path = self.drafts_dir / f"{payload.id}.json"
-        path.write_text(json.dumps(payload.to_dict(), indent=2), encoding="utf-8")
+        _atomic_write_text(path, json.dumps(payload.to_dict(), indent=2))
         self.event("generated", f"Generated {payload.title}", payload.id)
         return payload
 
@@ -40,9 +48,9 @@ class PayloadStore:
         self.ensure()
         fl_payload_path.parent.mkdir(parents=True, exist_ok=True)
         payload_json = json.dumps(payload.to_dict(), indent=2)
-        fl_payload_path.write_text(payload_json, encoding="utf-8")
-        (self.drafts_dir / f"{payload.id}.json").write_text(payload_json, encoding="utf-8")
-        self.current_path.write_text(payload_json, encoding="utf-8")
+        _atomic_write_text(fl_payload_path, payload_json)
+        _atomic_write_text(self.drafts_dir / f"{payload.id}.json", payload_json)
+        _atomic_write_text(self.current_path, payload_json)
         self.event("approved", "Approved payload and wrote FL apply file", payload.id)
         return payload
 
@@ -56,8 +64,8 @@ class PayloadStore:
         for part in draft.parts:
             self.save_draft(part.payload)
         draft_json = json.dumps(draft.to_dict(), indent=2)
-        (self.songs_dir / f"{draft.id}.json").write_text(draft_json, encoding="utf-8")
-        self.current_song_path.write_text(draft_json, encoding="utf-8")
+        _atomic_write_text(self.songs_dir / f"{draft.id}.json", draft_json)
+        _atomic_write_text(self.current_song_path, draft_json)
         self.event("song", f"Generated {draft.title} with {len(draft.parts)} parts", draft.id)
         return draft
 
@@ -75,8 +83,8 @@ class PayloadStore:
     def save_mastering_plan(self, plan: MasteringPlan) -> MasteringPlan:
         self.ensure()
         plan_json = json.dumps(plan.to_dict(), indent=2)
-        (self.mastering_dir / f"{plan.id}.json").write_text(plan_json, encoding="utf-8")
-        self.current_mastering_path.write_text(plan_json, encoding="utf-8")
+        _atomic_write_text(self.mastering_dir / f"{plan.id}.json", plan_json)
+        _atomic_write_text(self.current_mastering_path, plan_json)
         self.event("mastering", f"Generated {plan.title} with {len(plan.steps)} steps", plan.id)
         return plan
 
@@ -91,9 +99,9 @@ class PayloadStore:
         self.ensure()
         fl_plan_path.parent.mkdir(parents=True, exist_ok=True)
         plan_json = json.dumps(plan.to_dict(), indent=2)
-        fl_plan_path.write_text(plan_json, encoding="utf-8")
-        (self.mastering_dir / f"{plan.id}.json").write_text(plan_json, encoding="utf-8")
-        self.current_mastering_path.write_text(plan_json, encoding="utf-8")
+        _atomic_write_text(fl_plan_path, plan_json)
+        _atomic_write_text(self.mastering_dir / f"{plan.id}.json", plan_json)
+        _atomic_write_text(self.current_mastering_path, plan_json)
         self.event("mastering-approved", "Approved mastering plan and wrote FL connector file", plan.id)
         return plan
 
@@ -111,9 +119,13 @@ class PayloadStore:
     def events(self, limit: int = 50) -> list[dict[str, object]]:
         if not self.events_path.exists():
             return []
-        rows = [
-            json.loads(line)
-            for line in self.events_path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
+        rows: list[dict[str, object]] = []
+        for line in self.events_path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                rows.append(json.loads(stripped))
+            except json.JSONDecodeError:
+                continue
         return rows[-limit:]
