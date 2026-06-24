@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import asynccontextmanager
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -40,6 +41,8 @@ CATALOG_PATH = APP_ROOT / "backend" / "app" / "recommendation_catalog.json"
 INVENTORY_ROOTS_PATH = APP_ROOT / ".data" / "inventory_roots.json"
 DEFAULT_CORS_ORIGINS = ("http://127.0.0.1:5173", "http://localhost:5173")
 
+_ANALYSIS_RUNNER: AnalysisJobRunner | None = None
+
 
 def _parse_cors_origins(value: str | None) -> list[str]:
     origins = list(DEFAULT_CORS_ORIGINS)
@@ -49,7 +52,21 @@ def _parse_cors_origins(value: str | None) -> list[str]:
             origins.append(origin)
     return origins
 
-app = FastAPI(title="FL Connector", version="0.1.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    STORE.ensure()
+    RECONSTRUCTION_STORE.ensure()
+    STORE.event("server", "Connector backend started")
+    try:
+        recovered = _analysis_runner().mark_interrupted_jobs()
+        if recovered:
+            STORE.event("server", f"Reset {len(recovered)} interrupted analysis job(s)")
+    except Exception as exc:  # startup must never crash the server
+        STORE.event("error", f"Startup interrupted-job sweep failed: {exc}")
+    yield
+
+
+app = FastAPI(title="FL Connector", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_parse_cors_origins(os.environ.get("FL_CONNECTOR_CORS_ORIGINS")),
@@ -126,13 +143,6 @@ class GuideStepPatchRequest(BaseModel):
 
 class InventoryRefreshRequest(BaseModel):
     extraRoots: list[str] = Field(default_factory=list)
-
-
-@app.on_event("startup")
-def startup() -> None:
-    STORE.ensure()
-    RECONSTRUCTION_STORE.ensure()
-    STORE.event("server", "Connector backend started")
 
 
 def _review_status(data: dict[str, Any]) -> str:
@@ -638,13 +648,16 @@ def export_reconstruction(project_id: str) -> StreamingResponse:
 
 
 def _analysis_runner() -> AnalysisJobRunner:
-    catalog = InventoryScanner.load_catalog(CATALOG_PATH)
-    return AnalysisJobRunner(
-        RECONSTRUCTION_STORE,
-        LocalAnalysisProvider(worker_python(APP_ROOT), APP_ROOT / "backend"),
-        ReconstructionCompiler(catalog),
-        inventory_provider=_scan_inventory,
-    )
+    global _ANALYSIS_RUNNER
+    if _ANALYSIS_RUNNER is None:
+        catalog = InventoryScanner.load_catalog(CATALOG_PATH)
+        _ANALYSIS_RUNNER = AnalysisJobRunner(
+            RECONSTRUCTION_STORE,
+            LocalAnalysisProvider(worker_python(APP_ROOT), APP_ROOT / "backend"),
+            ReconstructionCompiler(catalog),
+            inventory_provider=_scan_inventory,
+        )
+    return _ANALYSIS_RUNNER
 
 
 def _scan_inventory() -> InventorySnapshot:

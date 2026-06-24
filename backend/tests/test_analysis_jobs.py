@@ -1,9 +1,13 @@
+import threading
 from pathlib import Path
+
+import pytest
 
 from app.analysis import AnalysisResult
 from app.analysis_jobs import AnalysisJobRunner
 from app.inventory import InventorySnapshot
 from app.reconstruction_compiler import ReconstructionCompiler
+from app.reconstruction_contracts import AnalysisJob, ReconstructionError
 from app.reconstruction_store import ReconstructionStore, UploadCandidate
 
 
@@ -88,4 +92,54 @@ def test_job_runner_records_worker_failure(tmp_path: Path):
     assert failed.status == "error"
     assert failed.analysisJob.status == "error"
     assert failed.analysisJob.error == "worker crashed"
+
+
+def test_runner_rejects_second_concurrent_job(tmp_path: Path):
+    store = ReconstructionStore(tmp_path)
+    project = project_with_stem(store)
+    started = threading.Event()
+    release = threading.Event()
+
+    class BlockingProvider:
+        def analyze(self, project_path, progress):
+            started.set()
+            release.wait(2)
+            return SuccessfulProvider().analyze(project_path, progress)
+
+    runner = AnalysisJobRunner(
+        store,
+        BlockingProvider(),
+        ReconstructionCompiler(),
+        inventory_provider=lambda: InventorySnapshot.empty(),
+    )
+
+    runner.start(project.id)
+    assert started.wait(2), "background analysis did not start"
+    try:
+        with pytest.raises(ReconstructionError):
+            runner.run(project.id)
+    finally:
+        release.set()
+
+
+def test_mark_interrupted_jobs_resets_running_projects(tmp_path: Path):
+    store = ReconstructionStore(tmp_path)
+    project = project_with_stem(store)
+    running = AnalysisJob.create().with_progress(
+        status="running", progress=25, stage="analyzing", message="Working"
+    )
+    store.save(project.with_changes(status="analyzing", analysisJob=running))
+    runner = AnalysisJobRunner(
+        store,
+        SuccessfulProvider(),
+        ReconstructionCompiler(),
+        inventory_provider=lambda: InventorySnapshot.empty(),
+    )
+
+    changed = runner.mark_interrupted_jobs()
+
+    assert project.id in changed
+    reread = store.get(project.id)
+    assert reread.status == "error"
+    assert reread.analysisJob.status == "interrupted"
 
