@@ -20,9 +20,9 @@ from .bridge_setup import build_bridge_setup_plan, install_bridge_server_scripts
 from .contracts import ContractError, NotePayload
 from .fl_scripts import install_piano_roll_script
 from .generator import generate_payload, generate_song_draft
+from .inventory import InventoryScanner, InventorySnapshot
 from .mastering import generate_mastering_plan
 from .midi_export import payload_to_midi, song_to_midi
-from .inventory import InventoryScanner, InventorySnapshot
 from .paths import detect_paths
 from .reconstruction_compiler import ReconstructionCompiler
 from .reconstruction_contracts import (
@@ -276,7 +276,10 @@ def current_song() -> dict[str, Any] | None:
 
 
 def _safe_filename(title: str) -> str:
-    cleaned = "".join(char if char.isalnum() or char in "-_" else "_" for char in title)
+    cleaned = "".join(
+        char if char.isascii() and (char.isalnum() or char in "-_") else "_"
+        for char in title
+    )
     return cleaned.strip("_")
 
 

@@ -2,20 +2,28 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from pathlib import Path
+from uuid import uuid4
 
 from .contracts import MasteringPlan, NotePayload, SongDraft
+
+# Serializes the temp-write + os.replace step. FastAPI runs sync endpoints in a
+# threadpool, and on Windows two concurrent os.replace calls onto the same target
+# can raise a sharing violation; the lock keeps writes last-writer-wins and safe.
+_WRITE_LOCK = threading.Lock()
 
 
 def _atomic_write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-    try:
-        tmp.write_text(text, encoding="utf-8")
-        os.replace(tmp, path)
-    except Exception:
-        tmp.unlink(missing_ok=True)
-        raise
+    tmp = path.with_name(f"{path.name}.{uuid4().hex}.tmp")
+    with _WRITE_LOCK:
+        try:
+            tmp.write_text(text, encoding="utf-8")
+            os.replace(tmp, path)
+        except Exception:
+            tmp.unlink(missing_ok=True)
+            raise
 
 
 class PayloadStore:

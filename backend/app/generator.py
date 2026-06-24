@@ -495,10 +495,24 @@ _FAMILY_PLUGIN_HINTS = {
 
 _GENERIC_FAMILIES = {"afro", "hiphop"}
 _GENERIC_ROLES = {"drums", "bass", "chords", "melody"}
-assert _GENERIC_FAMILIES == _FAMILY_MELODY.keys() == _FAMILY_PATTERN_NAMES.keys() == _FAMILY_PLUGIN_HINTS.keys()
-for _family in _GENERIC_FAMILIES:
-    assert _GENERIC_ROLES <= _FAMILY_PATTERN_NAMES[_family].keys()
-    assert _GENERIC_ROLES <= _FAMILY_PLUGIN_HINTS[_family].keys()
+
+
+def _validate_family_tables() -> None:
+    table_keys = (
+        _FAMILY_MELODY.keys(),
+        _FAMILY_PATTERN_NAMES.keys(),
+        _FAMILY_PLUGIN_HINTS.keys(),
+    )
+    if any(keys != _GENERIC_FAMILIES for keys in table_keys):
+        raise RuntimeError("generic genre family tables are out of sync")
+    for family in _GENERIC_FAMILIES:
+        if not _GENERIC_ROLES <= _FAMILY_PATTERN_NAMES[family].keys():
+            raise RuntimeError(f"missing pattern names for family {family}")
+        if not _GENERIC_ROLES <= _FAMILY_PLUGIN_HINTS[family].keys():
+            raise RuntimeError(f"missing plugin hints for family {family}")
+
+
+_validate_family_tables()
 
 
 def _generate_afro_payload(
