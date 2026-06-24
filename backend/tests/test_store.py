@@ -15,6 +15,7 @@ def test_events_skip_malformed_lines(tmp_path):
     store.event("a", "first")
     with store.events_path.open("a", encoding="utf-8") as handle:
         handle.write("{ broken json line\n")
+        handle.write("[1, 2, 3]\n")
         handle.write("\n")
     store.event("b", "second")
     messages = [row["message"] for row in store.events()]

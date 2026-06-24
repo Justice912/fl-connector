@@ -10,8 +10,12 @@ from .contracts import MasteringPlan, NotePayload, SongDraft
 def _atomic_write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-    tmp.write_text(text, encoding="utf-8")
-    os.replace(tmp, path)
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(tmp, path)
+    except Exception:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 class PayloadStore:
@@ -46,7 +50,6 @@ class PayloadStore:
     def approve(self, payload_id: str, fl_payload_path: Path) -> NotePayload:
         payload = self.get(payload_id).with_status("approved")
         self.ensure()
-        fl_payload_path.parent.mkdir(parents=True, exist_ok=True)
         payload_json = json.dumps(payload.to_dict(), indent=2)
         _atomic_write_text(fl_payload_path, payload_json)
         _atomic_write_text(self.drafts_dir / f"{payload.id}.json", payload_json)
@@ -97,7 +100,6 @@ class PayloadStore:
     def approve_mastering_plan(self, plan_id: str, fl_plan_path: Path) -> MasteringPlan:
         plan = self.get_mastering_plan(plan_id).with_status("approved")
         self.ensure()
-        fl_plan_path.parent.mkdir(parents=True, exist_ok=True)
         plan_json = json.dumps(plan.to_dict(), indent=2)
         _atomic_write_text(fl_plan_path, plan_json)
         _atomic_write_text(self.mastering_dir / f"{plan.id}.json", plan_json)
@@ -125,7 +127,9 @@ class PayloadStore:
             if not stripped:
                 continue
             try:
-                rows.append(json.loads(stripped))
+                parsed = json.loads(stripped)
             except json.JSONDecodeError:
                 continue
+            if isinstance(parsed, dict):
+                rows.append(parsed)
         return rows[-limit:]
