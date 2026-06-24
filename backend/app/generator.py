@@ -415,7 +415,7 @@ def _generate_amapiano_payload(
 
 
 def _afro_melody(key: str, scale: str, bars: int) -> list[Note]:
-    pool = _scale_notes(key, "major" if scale == "major" else scale)
+    pool = _scale_notes(key, scale)
     root = pool[0]
     motif = [(0.0, 7), (0.5, 9), (1.25, 4), (1.75, 7), (2.5, 2), (3.25, 4)]
     return [
@@ -468,13 +468,13 @@ _FAMILY_PATTERN_NAMES = {
     "afro": {
         "drums": "Afrobeats kit groove",
         "bass": "Rolling afro bass",
-        "chords": "Bright afro chords",
+        "chords": "Chord progression",
         "melody": "Afro lead motif",
     },
     "hiphop": {
         "drums": "Boom-bap kit",
         "bass": "808 sub bass",
-        "chords": "Sampled chord stab",
+        "chords": "Chord progression",
         "melody": "Hip-hop lead hook",
     },
 }
@@ -492,6 +492,13 @@ _FAMILY_PLUGIN_HINTS = {
         "melody": "FLEX lead preset",
     },
 }
+
+_GENERIC_FAMILIES = {"afro", "hiphop"}
+_GENERIC_ROLES = {"drums", "bass", "chords", "melody"}
+assert _GENERIC_FAMILIES == _FAMILY_MELODY.keys() == _FAMILY_PATTERN_NAMES.keys() == _FAMILY_PLUGIN_HINTS.keys()
+for _family in _GENERIC_FAMILIES:
+    assert _GENERIC_ROLES <= _FAMILY_PATTERN_NAMES[_family].keys()
+    assert _GENERIC_ROLES <= _FAMILY_PLUGIN_HINTS[_family].keys()
 
 
 def _generate_afro_payload(

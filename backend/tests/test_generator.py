@@ -39,6 +39,8 @@ def test_song_draft_parts_and_arrangement_are_coherent(genre):
     roles = {part.role for part in draft.parts}
     assert len(draft.parts) >= 4
     assert len(draft.arrangement) == 4
+    assert all(len(part.payload.notes) > 0 for part in draft.parts)
+    assert [part.applyOrder for part in draft.parts] == list(range(1, len(draft.parts) + 1))
     for section in draft.arrangement:
         assert section.activeParts, "arrangement section must list active parts"
         assert set(section.activeParts) <= roles
