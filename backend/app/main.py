@@ -20,6 +20,7 @@ from .bridge_setup import build_bridge_setup_plan, install_bridge_server_scripts
 from .contracts import ContractError, NotePayload
 from .fl_scripts import install_piano_roll_script
 from .generator import generate_payload, generate_song_draft
+from .midi_export import payload_to_midi, song_to_midi
 from .mastering import generate_mastering_plan
 from .inventory import InventoryScanner, InventorySnapshot
 from .paths import detect_paths
@@ -272,6 +273,41 @@ def generate_song(request: SongGenerateRequest) -> dict[str, Any]:
 def current_song() -> dict[str, Any] | None:
     song = STORE.current_song()
     return song.to_dict() if song else None
+
+
+def _safe_filename(title: str) -> str:
+    cleaned = "".join(char if char.isalnum() or char in "-_" else "_" for char in title)
+    return cleaned.strip("_")
+
+
+@app.get("/api/songs/{song_id}/export-midi")
+def export_song_midi(song_id: str) -> Response:
+    try:
+        draft = STORE.get_song(song_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="song draft not found") from exc
+    data = song_to_midi(draft)
+    filename = _safe_filename(draft.title) or "song"
+    return Response(
+        content=data,
+        media_type="audio/midi",
+        headers={"Content-Disposition": f'attachment; filename="{filename}.mid"'},
+    )
+
+
+@app.get("/api/payloads/{payload_id}/export-midi")
+def export_payload_midi(payload_id: str) -> Response:
+    try:
+        payload = STORE.get(payload_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="payload not found") from exc
+    data = payload_to_midi(payload)
+    filename = _safe_filename(payload.title) or "payload"
+    return Response(
+        content=data,
+        media_type="audio/midi",
+        headers={"Content-Disposition": f'attachment; filename="{filename}.mid"'},
+    )
 
 
 @app.post("/api/mastering/generate")
