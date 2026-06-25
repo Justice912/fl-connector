@@ -126,6 +126,12 @@ export function BridgeTrackControls({ track, busy, onSetMixerTrack, onSelectTrac
   const [volume, setVolume] = useState(track.volume ?? '');
   const [pan, setPan] = useState(track.pan ?? '');
 
+  useEffect(() => {
+    setName(track.name ?? '');
+    setVolume(track.volume ?? '');
+    setPan(track.pan ?? '');
+  }, [track.index]);
+
   function applyEdits() {
     const body = {};
     if (name !== (track.name ?? '')) body.name = name;
