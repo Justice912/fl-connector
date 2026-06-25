@@ -621,3 +621,45 @@ def test_run_bridge_write_reports_disconnected_when_flapi_missing():
 
     snapshot = run_bridge_write("x = 1", "done", client_factory=missing_client)
     assert snapshot.status == "disconnected"
+
+
+def test_set_project_tempo_emits_rec_event_and_validates():
+    import pytest
+    from app.bridge import set_project_tempo
+
+    captured = {}
+
+    class FakeClient:
+        def exec(self, code):
+            captured.setdefault("code", code)
+
+        def eval(self, expression):
+            values = {
+                '__fl_connector_bridge_snapshot__["flVersion"]': "v2025",
+                '__fl_connector_bridge_snapshot__["projectTitle"]': "Tempo",
+                '__fl_connector_bridge_snapshot__["selectedTrack"]': 0,
+                '__fl_connector_bridge_snapshot__["trackCount"]': 0,
+                '__fl_connector_bridge_snapshot__["transport"]': {
+                    "playing": False, "recording": False, "loopMode": 0,
+                    "songPosition": 0.0, "songPositionHint": "", "songLengthBars": None, "tempo": 120.0,
+                },
+                'len(__fl_connector_bridge_snapshot__["tracks"])': 0,
+                '__fl_connector_bridge_snapshot__["errors"]': [],
+            }
+            return values[expression]
+
+        def close(self):
+            pass
+
+    snapshot = set_project_tempo(120, client_factory=FakeClient)
+    assert snapshot.status == "connected"
+    assert captured["code"] == (
+        "import general\n"
+        "import midi\n"
+        "general.processRECEvent(midi.REC_Tempo, 120000, midi.REC_Control | midi.REC_UpdateControl)"
+    )
+
+    with pytest.raises(ValueError):
+        set_project_tempo(20, client_factory=FakeClient)
+    with pytest.raises(ValueError):
+        set_project_tempo(500, client_factory=FakeClient)

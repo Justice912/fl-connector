@@ -301,3 +301,18 @@ def run_transport_action(
         f"Live FL transport action applied: {action}.",
         client_factory=client_factory,
     )
+
+
+def set_project_tempo(
+    bpm: float,
+    client_factory: Callable[[], Any] | None = None,
+) -> BridgeSnapshot:
+    if not 40 <= bpm <= 240:
+        raise ValueError("bpm must be between 40 and 240")
+    value = int(round(bpm * 1000))
+    fl_code = (
+        "import general\n"
+        "import midi\n"
+        f"general.processRECEvent(midi.REC_Tempo, {value}, midi.REC_Control | midi.REC_UpdateControl)"
+    )
+    return run_bridge_write(fl_code, f"Set FL project tempo to {bpm:g} BPM.", client_factory=client_factory)
