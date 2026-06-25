@@ -252,14 +252,11 @@ def probe_bridge(
                 close()
 
 
-def run_transport_action(
-    action: str,
+def run_bridge_write(
+    fl_code: str,
+    message: str,
     client_factory: Callable[[], Any] | None = None,
 ) -> BridgeSnapshot:
-    command = TRANSPORT_ACTIONS.get(action)
-    if command is None:
-        raise ValueError(f"unsupported transport action: {action}")
-
     factory = client_factory or default_client_factory
     client: Any | None = None
     with _BRIDGE_PROBE_LOCK:
@@ -277,19 +274,30 @@ def run_transport_action(
             )
 
         try:
-            client.exec(f"import transport\n{command}")
+            client.exec(fl_code)
             client.exec(READ_ONLY_FL_PROBE)
             raw_snapshot = _read_bridge_snapshot(client)
-            return _connected_snapshot(
-                f"Live FL transport action applied: {action}.",
-                raw_snapshot,
-            )
+            return _connected_snapshot(message, raw_snapshot)
         except Exception as exc:
             return _error(
-                "Flapi connected, but the live transport action failed.",
+                "Flapi connected, but the live write action failed.",
                 [str(exc)],
             )
         finally:
             close = getattr(client, "close", None)
             if callable(close):
                 close()
+
+
+def run_transport_action(
+    action: str,
+    client_factory: Callable[[], Any] | None = None,
+) -> BridgeSnapshot:
+    command = TRANSPORT_ACTIONS.get(action)
+    if command is None:
+        raise ValueError(f"unsupported transport action: {action}")
+    return run_bridge_write(
+        f"import transport\n{command}",
+        f"Live FL transport action applied: {action}.",
+        client_factory=client_factory,
+    )

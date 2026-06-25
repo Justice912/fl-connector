@@ -573,3 +573,51 @@ def test_read_only_probe_does_not_include_write_actions():
 
     for call in banned_calls:
         assert call not in READ_ONLY_FL_PROBE
+
+
+def test_run_bridge_write_execs_code_then_probe_and_returns_snapshot():
+    calls = []
+
+    class FakeClient:
+        def exec(self, code):
+            calls.append(("exec", code))
+
+        def eval(self, expression):
+            values = {
+                '__fl_connector_bridge_snapshot__["flVersion"]': "Producer Edition v2025",
+                '__fl_connector_bridge_snapshot__["projectTitle"]': "Write project",
+                '__fl_connector_bridge_snapshot__["selectedTrack"]': 0,
+                '__fl_connector_bridge_snapshot__["trackCount"]': 0,
+                '__fl_connector_bridge_snapshot__["transport"]': {
+                    "playing": False, "recording": False, "loopMode": 0,
+                    "songPosition": 0.0, "songPositionHint": "", "songLengthBars": None, "tempo": None,
+                },
+                'len(__fl_connector_bridge_snapshot__["tracks"])': 0,
+                '__fl_connector_bridge_snapshot__["errors"]': [],
+            }
+            return values[expression]
+
+        def close(self):
+            calls.append(("close", None))
+
+    from app.bridge import run_bridge_write, READ_ONLY_FL_PROBE
+
+    snapshot = run_bridge_write("import mixer\nmixer.setTrackName(1, \"x\")", "done", client_factory=FakeClient)
+
+    assert snapshot.status == "connected"
+    assert snapshot.message == "done"
+    assert calls == [
+        ("exec", "import mixer\nmixer.setTrackName(1, \"x\")"),
+        ("exec", READ_ONLY_FL_PROBE),
+        ("close", None),
+    ]
+
+
+def test_run_bridge_write_reports_disconnected_when_flapi_missing():
+    from app.bridge import run_bridge_write
+
+    def missing_client():
+        raise ModuleNotFoundError("No module named 'flapi'")
+
+    snapshot = run_bridge_write("x = 1", "done", client_factory=missing_client)
+    assert snapshot.status == "disconnected"
