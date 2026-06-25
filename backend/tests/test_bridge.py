@@ -663,3 +663,50 @@ def test_set_project_tempo_emits_rec_event_and_validates():
         set_project_tempo(20, client_factory=FakeClient)
     with pytest.raises(ValueError):
         set_project_tempo(500, client_factory=FakeClient)
+
+
+def test_set_mixer_track_builds_code_for_provided_fields():
+    import pytest
+    from app.bridge import set_mixer_track
+
+    captured = {}
+
+    class FakeClient:
+        def exec(self, code):
+            captured.setdefault("code", code)
+
+        def eval(self, expression):
+            values = {
+                '__fl_connector_bridge_snapshot__["flVersion"]': "v2025",
+                '__fl_connector_bridge_snapshot__["projectTitle"]': "Mix",
+                '__fl_connector_bridge_snapshot__["selectedTrack"]': 0,
+                '__fl_connector_bridge_snapshot__["trackCount"]': 0,
+                '__fl_connector_bridge_snapshot__["transport"]': {
+                    "playing": False, "recording": False, "loopMode": 0,
+                    "songPosition": 0.0, "songPositionHint": "", "songLengthBars": None, "tempo": None,
+                },
+                'len(__fl_connector_bridge_snapshot__["tracks"])': 0,
+                '__fl_connector_bridge_snapshot__["errors"]': [],
+            }
+            return values[expression]
+
+        def close(self):
+            pass
+
+    snapshot = set_mixer_track(3, name='Lead "Bass"', volume=0.72, pan=-0.25, client_factory=FakeClient)
+    assert snapshot.status == "connected"
+    assert captured["code"] == (
+        "import mixer\n"
+        'mixer.setTrackName(3, "Lead \\"Bass\\"")\n'
+        "mixer.setTrackVolume(3, 0.72)\n"
+        "mixer.setTrackPan(3, -0.25)"
+    )
+
+    with pytest.raises(ValueError):
+        set_mixer_track(3, client_factory=FakeClient)  # no fields
+    with pytest.raises(ValueError):
+        set_mixer_track(200, name="x", client_factory=FakeClient)  # index
+    with pytest.raises(ValueError):
+        set_mixer_track(3, volume=2.0, client_factory=FakeClient)  # volume
+    with pytest.raises(ValueError):
+        set_mixer_track(3, pan=5.0, client_factory=FakeClient)  # pan

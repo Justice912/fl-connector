@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from importlib import import_module
 from threading import Lock
@@ -316,3 +317,36 @@ def set_project_tempo(
         f"general.processRECEvent(midi.REC_Tempo, {value}, midi.REC_Control | midi.REC_UpdateControl)"
     )
     return run_bridge_write(fl_code, f"Set FL project tempo to {bpm:g} BPM.", client_factory=client_factory)
+
+
+def set_mixer_track(
+    index: int,
+    *,
+    name: str | None = None,
+    volume: float | None = None,
+    pan: float | None = None,
+    client_factory: Callable[[], Any] | None = None,
+) -> BridgeSnapshot:
+    if not 0 <= index <= 125:
+        raise ValueError("mixer track index must be between 0 and 125")
+    if name is None and volume is None and pan is None:
+        raise ValueError("provide at least one of name, volume, or pan")
+    lines = ["import mixer"]
+    changed: list[str] = []
+    if name is not None:
+        if not name.strip() or len(name) > 100:
+            raise ValueError("track name must be 1-100 characters")
+        lines.append(f"mixer.setTrackName({index}, {json.dumps(name)})")
+        changed.append("name")
+    if volume is not None:
+        if not 0 <= volume <= 1:
+            raise ValueError("volume must be between 0 and 1")
+        lines.append(f"mixer.setTrackVolume({index}, {round(volume, 4)})")
+        changed.append("volume")
+    if pan is not None:
+        if not -1 <= pan <= 1:
+            raise ValueError("pan must be between -1 and 1")
+        lines.append(f"mixer.setTrackPan({index}, {round(pan, 4)})")
+        changed.append("pan")
+    message = f"Updated FL mixer track {index} ({', '.join(changed)})."
+    return run_bridge_write("\n".join(lines), message, client_factory=client_factory)
