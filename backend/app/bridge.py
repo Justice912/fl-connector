@@ -319,6 +319,44 @@ def set_project_tempo(
     return run_bridge_write(fl_code, f"Set FL project tempo to {bpm:g} BPM.", client_factory=client_factory)
 
 
+def _require_track_index(index: int) -> None:
+    if not 0 <= index <= 125:
+        raise ValueError("mixer track index must be between 0 and 125")
+
+
+def select_mixer_track(
+    index: int, client_factory: Callable[[], Any] | None = None
+) -> BridgeSnapshot:
+    _require_track_index(index)
+    return run_bridge_write(
+        f"import mixer\nmixer.setTrackNumber({index})",
+        f"Selected FL mixer track {index}.",
+        client_factory=client_factory,
+    )
+
+
+def set_mixer_track_mute(
+    index: int, client_factory: Callable[[], Any] | None = None
+) -> BridgeSnapshot:
+    _require_track_index(index)
+    return run_bridge_write(
+        f"import mixer\nmixer.muteTrack({index})",
+        f"Toggled mute on FL mixer track {index}.",
+        client_factory=client_factory,
+    )
+
+
+def set_mixer_track_solo(
+    index: int, client_factory: Callable[[], Any] | None = None
+) -> BridgeSnapshot:
+    _require_track_index(index)
+    return run_bridge_write(
+        f"import mixer\nmixer.soloTrack({index})",
+        f"Toggled solo on FL mixer track {index}.",
+        client_factory=client_factory,
+    )
+
+
 def set_mixer_track(
     index: int,
     *,

@@ -710,3 +710,42 @@ def test_set_mixer_track_builds_code_for_provided_fields():
         set_mixer_track(3, volume=2.0, client_factory=FakeClient)  # volume
     with pytest.raises(ValueError):
         set_mixer_track(3, pan=5.0, client_factory=FakeClient)  # pan
+
+
+def test_select_mute_solo_emit_expected_code():
+    import pytest
+    from app.bridge import select_mixer_track, set_mixer_track_mute, set_mixer_track_solo
+
+    def fake_factory(expected_first):
+        class FakeClient:
+            def exec(self, code):
+                if not hasattr(self, "first"):
+                    self.first = code
+                    assert code == expected_first
+
+            def eval(self, expression):
+                values = {
+                    '__fl_connector_bridge_snapshot__["flVersion"]': "v2025",
+                    '__fl_connector_bridge_snapshot__["projectTitle"]': "T",
+                    '__fl_connector_bridge_snapshot__["selectedTrack"]': 0,
+                    '__fl_connector_bridge_snapshot__["trackCount"]': 0,
+                    '__fl_connector_bridge_snapshot__["transport"]': {
+                        "playing": False, "recording": False, "loopMode": 0,
+                        "songPosition": 0.0, "songPositionHint": "", "songLengthBars": None, "tempo": None,
+                    },
+                    'len(__fl_connector_bridge_snapshot__["tracks"])': 0,
+                    '__fl_connector_bridge_snapshot__["errors"]': [],
+                }
+                return values[expression]
+
+            def close(self):
+                pass
+
+        return FakeClient
+
+    assert select_mixer_track(2, client_factory=fake_factory("import mixer\nmixer.setTrackNumber(2)")).status == "connected"
+    assert set_mixer_track_mute(2, client_factory=fake_factory("import mixer\nmixer.muteTrack(2)")).status == "connected"
+    assert set_mixer_track_solo(2, client_factory=fake_factory("import mixer\nmixer.soloTrack(2)")).status == "connected"
+
+    with pytest.raises(ValueError):
+        select_mixer_track(999, client_factory=fake_factory(""))
