@@ -121,7 +121,47 @@ function EventLog({ events }) {
   );
 }
 
-function BridgePanel({ bridge, setupPlan, busy, onRefresh, onRefreshSetup, onInstallScripts, onTransportAction }) {
+export function BridgeTrackControls({ track, busy, onSetMixerTrack, onSelectTrack, onMuteTrack, onSoloTrack }) {
+  const [name, setName] = useState(track.name ?? '');
+  const [volume, setVolume] = useState(track.volume ?? '');
+  const [pan, setPan] = useState(track.pan ?? '');
+
+  function applyEdits() {
+    const body = {};
+    if (name !== (track.name ?? '')) body.name = name;
+    if (volume !== '' && Number(volume) !== track.volume) body.volume = Number(volume);
+    if (pan !== '' && Number(pan) !== track.pan) body.pan = Number(pan);
+    if (Object.keys(body).length > 0) onSetMixerTrack(track.index, body);
+  }
+
+  return (
+    <div className="track-controls">
+      <input
+        aria-label={`Track ${track.index} name`}
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+      />
+      <input
+        aria-label={`Track ${track.index} volume`}
+        type="number" min="0" max="1" step="0.01"
+        value={volume}
+        onChange={(event) => setVolume(event.target.value)}
+      />
+      <input
+        aria-label={`Track ${track.index} pan`}
+        type="number" min="-1" max="1" step="0.01"
+        value={pan}
+        onChange={(event) => setPan(event.target.value)}
+      />
+      <button type="button" className="secondary-button compact-button" disabled={busy} onClick={applyEdits}>Apply</button>
+      <button type="button" className="secondary-button compact-button" disabled={busy} onClick={() => onSelectTrack(track.index)}>Select</button>
+      <button type="button" className="secondary-button compact-button" disabled={busy} onClick={() => onMuteTrack(track.index)}>Mute</button>
+      <button type="button" className="secondary-button compact-button" disabled={busy} onClick={() => onSoloTrack(track.index)}>Solo</button>
+    </div>
+  );
+}
+
+export function BridgePanel({ bridge, setupPlan, busy, songBpm, onRefresh, onRefreshSetup, onInstallScripts, onTransportAction, onSetTempo, onSetMixerTrack, onSelectTrack, onMuteTrack, onSoloTrack }) {
   const status = bridge?.status ?? 'disconnected';
   const connected = status === 'connected';
   const errored = status === 'error';
@@ -176,6 +216,14 @@ function BridgePanel({ bridge, setupPlan, busy, onRefresh, onRefreshSetup, onIns
           <Square size={17} />
           Stop
         </button>
+        <button
+          className="secondary-button compact-button"
+          disabled={busy || !connected || !songBpm}
+          onClick={() => onSetTempo(songBpm)}
+        >
+          <Gauge size={17} />
+          Sync tempo{songBpm ? ` (${songBpm})` : ''}
+        </button>
       </div>
 
       {connected ? (
@@ -212,10 +260,15 @@ function BridgePanel({ bridge, setupPlan, busy, onRefresh, onRefreshSetup, onIns
                 <span>{track.index}</span>
                 <div>
                   <strong>{track.name || `Track ${track.index}`}</strong>
-                  <small>
-                    Vol {track.volume ?? 'n/a'} · Pan {track.pan ?? 'n/a'}
-                  </small>
                   {track.slots.length > 0 && <em>{track.slots.join(', ')}</em>}
+                  <BridgeTrackControls
+                    track={track}
+                    busy={busy || !connected}
+                    onSetMixerTrack={onSetMixerTrack}
+                    onSelectTrack={onSelectTrack}
+                    onMuteTrack={onMuteTrack}
+                    onSoloTrack={onSoloTrack}
+                  />
                 </div>
               </div>
             ))}
@@ -563,6 +616,7 @@ function App() {
           bridge={bridge}
           setupPlan={bridgeSetup}
           busy={busy}
+          songBpm={song?.bpm}
           onRefresh={() => runTask(refreshBridge, { adoptCurrent: false })}
           onRefreshSetup={() => runTask(refreshBridgeSetup, { adoptCurrent: false })}
           onInstallScripts={() => runTask(async () => {
@@ -574,6 +628,31 @@ function App() {
             const next = await api.bridgeTransport(action);
             setBridge(next);
             setMessage(`FL transport ${action} command sent.`);
+          }, { adoptCurrent: false })}
+          onSetTempo={(bpm) => runTask(async () => {
+            const next = await api.bridgeSetTempo(bpm);
+            setBridge(next);
+            setMessage(`Sent tempo ${bpm} BPM to FL.`);
+          }, { adoptCurrent: false })}
+          onSetMixerTrack={(index, body) => runTask(async () => {
+            const next = await api.bridgeSetMixerTrack(index, body);
+            setBridge(next);
+            setMessage(`Updated FL mixer track ${index}.`);
+          }, { adoptCurrent: false })}
+          onSelectTrack={(index) => runTask(async () => {
+            const next = await api.bridgeSelectTrack(index);
+            setBridge(next);
+            setMessage(`Selected FL mixer track ${index}.`);
+          }, { adoptCurrent: false })}
+          onMuteTrack={(index) => runTask(async () => {
+            const next = await api.bridgeMuteTrack(index);
+            setBridge(next);
+            setMessage(`Toggled mute on FL mixer track ${index}.`);
+          }, { adoptCurrent: false })}
+          onSoloTrack={(index) => runTask(async () => {
+            const next = await api.bridgeSoloTrack(index);
+            setBridge(next);
+            setMessage(`Toggled solo on FL mixer track ${index}.`);
           }, { adoptCurrent: false })}
         />
 

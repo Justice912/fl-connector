@@ -1500,3 +1500,18 @@ select {
 .part-row-wrap .part-row {
   flex: 1;
 }
+
+.track-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.track-controls input {
+  width: 64px;
+}
+
+.track-controls input[aria-label$="name"] {
+  width: 120px;
+}
