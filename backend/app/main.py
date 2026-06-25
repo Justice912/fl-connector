@@ -15,7 +15,15 @@ from pydantic import BaseModel, Field
 from .analysis import LocalAnalysisProvider
 from .analysis_jobs import AnalysisJobRunner
 from .analysis_setup import build_analysis_setup_plan, install_analysis_worker, worker_python
-from .bridge import probe_bridge, run_transport_action
+from .bridge import (
+    probe_bridge,
+    run_transport_action,
+    select_mixer_track,
+    set_mixer_track,
+    set_mixer_track_mute,
+    set_mixer_track_solo,
+    set_project_tempo,
+)
 from .bridge_setup import build_bridge_setup_plan, install_bridge_server_scripts
 from .contracts import ContractError, NotePayload
 from .fl_scripts import install_piano_roll_script
@@ -110,6 +118,16 @@ class BridgeTransportRequest(BaseModel):
     action: str = Field(pattern="^(play|stop)$")
 
 
+class BridgeTempoRequest(BaseModel):
+    bpm: float = Field(ge=40, le=240)
+
+
+class BridgeMixerTrackRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    volume: float | None = Field(default=None, ge=0, le=1)
+    pan: float | None = Field(default=None, ge=-1, le=1)
+
+
 class AnalysisInstallRequest(BaseModel):
     approved: bool = False
 
@@ -194,6 +212,48 @@ def bridge_health() -> dict[str, Any]:
 def bridge_transport(request: BridgeTransportRequest) -> dict[str, Any]:
     try:
         return run_transport_action(request.action).to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/bridge/tempo")
+def bridge_set_tempo(request: BridgeTempoRequest) -> dict[str, Any]:
+    try:
+        return set_project_tempo(request.bpm).to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/bridge/mixer/{index}")
+def bridge_set_mixer_track(index: int, request: BridgeMixerTrackRequest) -> dict[str, Any]:
+    try:
+        return set_mixer_track(
+            index, name=request.name, volume=request.volume, pan=request.pan
+        ).to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/bridge/mixer/{index}/select")
+def bridge_select_mixer_track(index: int) -> dict[str, Any]:
+    try:
+        return select_mixer_track(index).to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/bridge/mixer/{index}/mute")
+def bridge_mute_mixer_track(index: int) -> dict[str, Any]:
+    try:
+        return set_mixer_track_mute(index).to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/bridge/mixer/{index}/solo")
+def bridge_solo_mixer_track(index: int) -> dict[str, Any]:
+    try:
+        return set_mixer_track_solo(index).to_dict()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

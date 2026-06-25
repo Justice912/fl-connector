@@ -749,3 +749,54 @@ def test_select_mute_solo_emit_expected_code():
 
     with pytest.raises(ValueError):
         select_mixer_track(999, client_factory=fake_factory(""))
+
+
+def test_bridge_write_endpoints_route_to_functions(monkeypatch):
+    from app.contracts import BridgeSnapshot
+
+    def fake_snapshot(message):
+        return BridgeSnapshot.from_dict(
+            {
+                "status": "connected", "message": message, "source": "flapi",
+                "flVersion": "v2025", "projectTitle": "P", "selectedTrack": 0, "trackCount": 0,
+                "transport": {
+                    "playing": False, "recording": False, "loopMode": 0,
+                    "songPosition": 0.0, "songPositionHint": "", "songLengthBars": None, "tempo": 120.0,
+                },
+                "tracks": [], "setup": [], "errors": [],
+            }
+        )
+
+    calls = []
+    monkeypatch.setattr(main_module, "set_project_tempo", lambda bpm: calls.append(("tempo", bpm)) or fake_snapshot("t"))
+    monkeypatch.setattr(main_module, "set_mixer_track", lambda index, name=None, volume=None, pan=None: calls.append(("mixer", index, name, volume, pan)) or fake_snapshot("m"))
+    monkeypatch.setattr(main_module, "select_mixer_track", lambda index: calls.append(("select", index)) or fake_snapshot("s"))
+    monkeypatch.setattr(main_module, "set_mixer_track_mute", lambda index: calls.append(("mute", index)) or fake_snapshot("mu"))
+    monkeypatch.setattr(main_module, "set_mixer_track_solo", lambda index: calls.append(("solo", index)) or fake_snapshot("so"))
+
+    assert main_module.bridge_set_tempo(main_module.BridgeTempoRequest(bpm=120))["status"] == "connected"
+    assert main_module.bridge_set_mixer_track(3, main_module.BridgeMixerTrackRequest(name="Bass", volume=0.7, pan=0.0))["status"] == "connected"
+    assert main_module.bridge_select_mixer_track(3)["status"] == "connected"
+    assert main_module.bridge_mute_mixer_track(3)["status"] == "connected"
+    assert main_module.bridge_solo_mixer_track(3)["status"] == "connected"
+
+    assert calls == [
+        ("tempo", 120.0),
+        ("mixer", 3, "Bass", 0.7, 0.0),
+        ("select", 3),
+        ("mute", 3),
+        ("solo", 3),
+    ]
+
+
+def test_bridge_set_tempo_maps_value_error_to_400(monkeypatch):
+    import pytest
+    from fastapi import HTTPException
+
+    def boom(bpm):
+        raise ValueError("bpm must be between 40 and 240")
+
+    monkeypatch.setattr(main_module, "set_project_tempo", boom)
+    with pytest.raises(HTTPException) as exc:
+        main_module.bridge_set_tempo(main_module.BridgeTempoRequest(bpm=120))
+    assert exc.value.status_code == 400
