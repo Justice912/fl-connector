@@ -1029,3 +1029,42 @@ def test_bridge_set_channel_maps_value_error_to_400(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         main_module.bridge_set_channel(2, main_module.BridgeChannelRequest(name="x"))
     assert exc.value.status_code == 400
+
+
+def test_bridge_select_channel_maps_value_error_to_400(monkeypatch):
+    import pytest
+    from fastapi import HTTPException
+
+    def boom(index):
+        raise ValueError("channel index must be between 0 and 511")
+
+    monkeypatch.setattr(main_module, "select_channel", boom)
+    with pytest.raises(HTTPException) as exc:
+        main_module.bridge_select_channel(2)
+    assert exc.value.status_code == 400
+
+
+def test_bridge_mute_channel_maps_value_error_to_400(monkeypatch):
+    import pytest
+    from fastapi import HTTPException
+
+    def boom(index):
+        raise ValueError("channel index must be between 0 and 511")
+
+    monkeypatch.setattr(main_module, "set_channel_mute", boom)
+    with pytest.raises(HTTPException) as exc:
+        main_module.bridge_mute_channel(2)
+    assert exc.value.status_code == 400
+
+
+def test_bridge_solo_channel_maps_value_error_to_400(monkeypatch):
+    import pytest
+    from fastapi import HTTPException
+
+    def boom(index):
+        raise ValueError("channel index must be between 0 and 511")
+
+    monkeypatch.setattr(main_module, "set_channel_solo", boom)
+    with pytest.raises(HTTPException) as exc:
+        main_module.bridge_solo_channel(2)
+    assert exc.value.status_code == 400
