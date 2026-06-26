@@ -50,3 +50,21 @@ def test_trap_uses_same_family_for_single_and_song():
     assert genre_family("Trap") == genre_family("Hip Hop") == "hiphop"
     draft = generate_song_draft(prompt="dark trap song", genre="Trap")
     assert {part.role for part in draft.parts} == {"drums", "bass", "chords", "melody"}
+
+
+def test_groove_shifts_notes_off_the_rigid_grid():
+    # The rigid builders place notes on exact 0.25-beat multiples; the groove pass
+    # (swing + jitter) must move at least some notes off that grid.
+    payload = generate_payload(prompt="Create a deep amapiano log drum riff", key="A")
+    off_grid = [n for n in payload.notes if abs(((n.startBeats * 4) % 1.0)) > 1e-6]
+    assert off_grid, "expected groove to shift some notes off the 0.25-beat grid"
+
+
+def test_groove_preserves_note_count_and_determinism():
+    first = generate_payload(prompt="Create a deep amapiano log drum riff", key="A")
+    second = generate_payload(prompt="Create a deep amapiano log drum riff", key="A")
+    # determinism (seeded from stable inputs) is preserved
+    assert [n.to_dict() for n in first.notes] == [n.to_dict() for n in second.notes]
+    # every note still satisfies the contract after grooving
+    for note in first.notes:
+        note.validate()

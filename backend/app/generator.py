@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 
 from .contracts import ArrangementSection, Note, NotePayload, SongDraft, SongPart
+from .groove import apply_groove, groove_seed
 
 ROOTS = {
     "C": 48,
@@ -64,6 +66,28 @@ def genre_family(genre: str) -> str:
     if "hip" in lowered or "trap" in lowered:
         return "hiphop"
     return "amapiano"
+
+
+def _groove(
+    notes: list[Note], role: str, genre: str, key: str, bars: int, prompt: str
+) -> list[Note]:
+    family = genre_family(genre)
+    grooved = apply_groove(
+        notes,
+        family=family,
+        role=role,
+        seed=groove_seed(prompt, key, bars, genre, role),
+    )
+    # Clamp start so note.startBeats + note.durationBeats never exceeds the bar boundary.
+    max_start_per_note = [
+        round(max(0.0, bars * 4 - n.durationBeats), 4) for n in notes
+    ]
+    return [
+        replace(n, startBeats=min(n.startBeats, cap))
+        if n.startBeats > cap
+        else n
+        for n, cap in zip(grooved, max_start_per_note)
+    ]
 
 
 def generate_payload(
@@ -153,7 +177,7 @@ def _generate_amapiano_song(
                 key=key,
                 scale=scale,
                 bars=bars,
-                notes=_amapiano_drums(bars),
+                notes=_groove(_amapiano_drums(bars), "drums", genre, key, bars, prompt),
             ),
         ),
         SongPart.create(
@@ -169,7 +193,7 @@ def _generate_amapiano_song(
                 key=key,
                 scale=scale,
                 bars=bars,
-                notes=_amapiano_bass(key, scale, bars),
+                notes=_groove(_amapiano_bass(key, scale, bars), "bass", genre, key, bars, prompt),
             ),
         ),
         SongPart.create(
@@ -185,7 +209,7 @@ def _generate_amapiano_song(
                 key=key,
                 scale=scale,
                 bars=bars,
-                notes=_amapiano_chords(key, scale, bars),
+                notes=_groove(_amapiano_chords(key, scale, bars), "chords", genre, key, bars, prompt),
             ),
         ),
         SongPart.create(
@@ -201,7 +225,7 @@ def _generate_amapiano_song(
                 key=key,
                 scale=scale,
                 bars=bars,
-                notes=_amapiano_log_drum(key, scale, bars),
+                notes=_groove(_amapiano_log_drum(key, scale, bars), "log_drum", genre, key, bars, prompt),
             ),
         ),
         SongPart.create(
@@ -217,7 +241,7 @@ def _generate_amapiano_song(
                 key=key,
                 scale=scale,
                 bars=bars,
-                notes=_amapiano_melody(key, scale, bars),
+                notes=_groove(_amapiano_melody(key, scale, bars), "melody", genre, key, bars, prompt),
             ),
         ),
     ]
@@ -410,7 +434,7 @@ def _generate_amapiano_payload(
         key=key,
         scale=scale,
         bars=bars,
-        notes=notes,
+        notes=_groove(notes, "log_drum", genre, key, bars, prompt),
     )
 
 
@@ -526,7 +550,7 @@ def _generate_afro_payload(
         key=key,
         scale=scale,
         bars=bars,
-        notes=_afro_melody(key, scale, bars),
+        notes=_groove(_afro_melody(key, scale, bars), "melody", genre, key, bars, prompt),
     )
 
 
@@ -541,7 +565,7 @@ def _generate_hiphop_payload(
         key=key,
         scale=scale,
         bars=bars,
-        notes=_hiphop_melody(key, scale, bars),
+        notes=_groove(_hiphop_melody(key, scale, bars), "melody", genre, key, bars, prompt),
     )
 
 
@@ -552,10 +576,10 @@ def _generate_generic_song(
     hints = _FAMILY_PLUGIN_HINTS[family]
     melody_builder = _FAMILY_MELODY[family]
     role_notes = {
-        "drums": _generic_drums(bars),
-        "bass": _generic_bass(key, scale, bars),
-        "chords": _amapiano_chords(key, scale, bars),
-        "melody": melody_builder(key, scale, bars),
+        "drums": _groove(_generic_drums(bars), "drums", genre, key, bars, prompt),
+        "bass": _groove(_generic_bass(key, scale, bars), "bass", genre, key, bars, prompt),
+        "chords": _groove(_amapiano_chords(key, scale, bars), "chords", genre, key, bars, prompt),
+        "melody": _groove(melody_builder(key, scale, bars), "melody", genre, key, bars, prompt),
     }
     roles = ["drums", "bass", "chords", "melody"]
     parts = [
