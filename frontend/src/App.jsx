@@ -167,7 +167,53 @@ export function BridgeTrackControls({ track, busy, onSetMixerTrack, onSelectTrac
   );
 }
 
-export function BridgePanel({ bridge, setupPlan, busy, songBpm, onRefresh, onRefreshSetup, onInstallScripts, onTransportAction, onSetTempo, onSetMixerTrack, onSelectTrack, onMuteTrack, onSoloTrack }) {
+export function BridgeChannelControls({ channel, busy, onSetChannel, onSelectChannel, onMuteChannel, onSoloChannel }) {
+  const [name, setName] = useState(channel.name ?? '');
+  const [volume, setVolume] = useState(channel.volume ?? '');
+  const [pan, setPan] = useState(channel.pan ?? '');
+
+  useEffect(() => {
+    setName(channel.name ?? '');
+    setVolume(channel.volume ?? '');
+    setPan(channel.pan ?? '');
+  }, [channel.index]);
+
+  function applyEdits() {
+    const body = {};
+    if (name !== (channel.name ?? '')) body.name = name;
+    if (volume !== '' && Number(volume) !== channel.volume) body.volume = Number(volume);
+    if (pan !== '' && Number(pan) !== channel.pan) body.pan = Number(pan);
+    if (Object.keys(body).length > 0) onSetChannel(channel.index, body);
+  }
+
+  return (
+    <div className="track-controls">
+      <input
+        aria-label={`Channel ${channel.index} name`}
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+      />
+      <input
+        aria-label={`Channel ${channel.index} volume`}
+        type="number" min="0" max="1" step="0.01"
+        value={volume}
+        onChange={(event) => setVolume(event.target.value)}
+      />
+      <input
+        aria-label={`Channel ${channel.index} pan`}
+        type="number" min="-1" max="1" step="0.01"
+        value={pan}
+        onChange={(event) => setPan(event.target.value)}
+      />
+      <button type="button" className="secondary-button compact-button" disabled={busy} onClick={applyEdits}>Apply</button>
+      <button type="button" className="secondary-button compact-button" disabled={busy} onClick={() => onSelectChannel(channel.index)}>Select</button>
+      <button type="button" className={`secondary-button compact-button ${channel.muted ? 'active' : ''}`} disabled={busy} onClick={() => onMuteChannel(channel.index)}>Mute</button>
+      <button type="button" className={`secondary-button compact-button ${channel.solo ? 'active' : ''}`} disabled={busy} onClick={() => onSoloChannel(channel.index)}>Solo</button>
+    </div>
+  );
+}
+
+export function BridgePanel({ bridge, setupPlan, busy, songBpm, onRefresh, onRefreshSetup, onInstallScripts, onTransportAction, onSetTempo, onSetMixerTrack, onSelectTrack, onMuteTrack, onSoloTrack, onSetChannel, onSelectChannel, onMuteChannel, onSoloChannel }) {
   const status = bridge?.status ?? 'disconnected';
   const connected = status === 'connected';
   const errored = status === 'error';
@@ -279,6 +325,27 @@ export function BridgePanel({ bridge, setupPlan, busy, songBpm, onRefresh, onRef
               </div>
             ))}
           </div>
+          {(bridge.channels ?? []).length > 0 && (
+            <div className="bridge-channels">
+              <h4>Channel Rack</h4>
+              {(bridge.channels ?? []).map((channel) => (
+                <div className={`bridge-channel ${channel.selected ? 'selected' : ''}`} key={channel.index}>
+                  <span>{channel.index}</span>
+                  <div>
+                    <strong>{channel.name || `Channel ${channel.index}`}</strong>
+                    <BridgeChannelControls
+                      channel={channel}
+                      busy={busy || !connected}
+                      onSetChannel={onSetChannel}
+                      onSelectChannel={onSelectChannel}
+                      onMuteChannel={onMuteChannel}
+                      onSoloChannel={onSoloChannel}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       ) : (
         <div className="bridge-setup">
@@ -659,6 +726,26 @@ function App() {
             const next = await api.bridgeSoloTrack(index);
             setBridge(next);
             setMessage(`Toggled solo on FL mixer track ${index}.`);
+          }, { adoptCurrent: false })}
+          onSetChannel={(index, body) => runTask(async () => {
+            const next = await api.bridgeSetChannel(index, body);
+            setBridge(next);
+            setMessage(`Updated FL channel ${index}.`);
+          }, { adoptCurrent: false })}
+          onSelectChannel={(index) => runTask(async () => {
+            const next = await api.bridgeSelectChannel(index);
+            setBridge(next);
+            setMessage(`Selected FL channel ${index}.`);
+          }, { adoptCurrent: false })}
+          onMuteChannel={(index) => runTask(async () => {
+            const next = await api.bridgeMuteChannel(index);
+            setBridge(next);
+            setMessage(`Toggled mute on FL channel ${index}.`);
+          }, { adoptCurrent: false })}
+          onSoloChannel={(index) => runTask(async () => {
+            const next = await api.bridgeSoloChannel(index);
+            setBridge(next);
+            setMessage(`Toggled solo on FL channel ${index}.`);
           }, { adoptCurrent: false })}
         />
 

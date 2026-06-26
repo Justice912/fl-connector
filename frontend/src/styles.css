@@ -1515,3 +1515,23 @@ select {
 .track-controls input[aria-label$="name"] {
   width: 120px;
 }
+
+.bridge-channels {
+  margin-top: 12px;
+}
+
+.bridge-channel {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border, #2a2a2a);
+}
+
+.bridge-channel.selected strong {
+  color: var(--accent, #6ea8fe);
+}
+
+.compact-button.active {
+  background: var(--accent, #6ea8fe);
+  color: #0b0b0b;
+}
