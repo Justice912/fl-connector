@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
@@ -661,6 +661,52 @@ class BridgeMixerTrack:
 
 
 @dataclass(frozen=True)
+class BridgeChannel:
+    index: int
+    name: str
+    volume: float | None
+    pan: float | None
+    muted: bool
+    solo: bool
+    selected: bool
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> "BridgeChannel":
+        volume = value.get("volume")
+        pan = value.get("pan")
+        channel = cls(
+            index=int(value["index"]),
+            name=str(value.get("name", "")),
+            volume=float(volume) if volume is not None else None,
+            pan=float(pan) if pan is not None else None,
+            muted=bool(value.get("muted", False)),
+            solo=bool(value.get("solo", False)),
+            selected=bool(value.get("selected", False)),
+        )
+        channel.validate()
+        return channel
+
+    def validate(self) -> None:
+        if self.index < 0:
+            raise ContractError("bridge channel index must be >= 0")
+        if self.volume is not None and not 0 <= self.volume <= 1:
+            raise ContractError("bridge channel volume must be 0-1")
+        if self.pan is not None and not -1 <= self.pan <= 1:
+            raise ContractError("bridge channel pan must be -1 to 1")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "index": self.index,
+            "name": self.name,
+            "volume": round(self.volume, 4) if self.volume is not None else None,
+            "pan": round(self.pan, 4) if self.pan is not None else None,
+            "muted": self.muted,
+            "solo": self.solo,
+            "selected": self.selected,
+        }
+
+
+@dataclass(frozen=True)
 class BridgeSnapshot:
     status: BridgeStatus
     message: str
@@ -674,12 +720,17 @@ class BridgeSnapshot:
     tracks: list[BridgeMixerTrack]
     setup: list[str]
     errors: list[str]
+    channelCount: int | None = None
+    selectedChannel: int | None = None
+    channels: list[BridgeChannel] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "BridgeSnapshot":
         selected_track = value.get("selectedTrack")
         track_count = value.get("trackCount")
         transport = value.get("transport")
+        channel_count = value.get("channelCount")
+        selected_channel = value.get("selectedChannel")
         snapshot = cls(
             status=value.get("status", "disconnected"),
             message=str(value.get("message", "")),
@@ -693,6 +744,9 @@ class BridgeSnapshot:
             tracks=[BridgeMixerTrack.from_dict(track) for track in value.get("tracks", [])],
             setup=[str(step) for step in value.get("setup", [])],
             errors=[str(error) for error in value.get("errors", [])],
+            channelCount=int(channel_count) if channel_count is not None else None,
+            selectedChannel=int(selected_channel) if selected_channel is not None else None,
+            channels=[BridgeChannel.from_dict(channel) for channel in value.get("channels", [])],
         )
         snapshot.validate()
         return snapshot
@@ -706,6 +760,12 @@ class BridgeSnapshot:
             raise ContractError("bridge selectedTrack must be >= 0")
         if self.trackCount is not None and self.trackCount < 0:
             raise ContractError("bridge trackCount must be >= 0")
+        if self.channelCount is not None and self.channelCount < 0:
+            raise ContractError("bridge channelCount must be >= 0")
+        if self.selectedChannel is not None and self.selectedChannel < 0:
+            raise ContractError("bridge selectedChannel must be >= 0")
+        for channel in self.channels:
+            channel.validate()
         if self.status == "connected" and self.transport is None:
             raise ContractError("connected bridge snapshots require transport")
         for track in self.tracks:
@@ -723,6 +783,9 @@ class BridgeSnapshot:
             "trackCount": self.trackCount,
             "transport": self.transport.to_dict() if self.transport else None,
             "tracks": [track.to_dict() for track in self.tracks],
+            "channelCount": self.channelCount,
+            "selectedChannel": self.selectedChannel,
+            "channels": [channel.to_dict() for channel in self.channels],
             "setup": self.setup,
             "errors": self.errors,
         }

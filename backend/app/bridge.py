@@ -32,6 +32,7 @@ _BRIDGE_PROBE_LOCK = Lock()
 
 READ_ONLY_FL_PROBE = """
 import mixer
+import channels
 import plugins
 import transport
 import ui
@@ -77,6 +78,20 @@ for track_index in range(min(int(track_count), 16)):
         "slots": _slot_names(track_index),
     })
 
+channel_count = _safe("channels.channelCount", lambda: channels.channelCount(True), 0) or 0
+selected_channel = _safe("channels.selectedChannel", lambda: channels.selectedChannel(True, 0, True), None)
+channels_list = []
+for channel_index in range(min(int(channel_count), 32)):
+    channels_list.append({
+        "index": channel_index,
+        "name": _safe("channels.getChannelName(" + str(channel_index) + ")", lambda: channels.getChannelName(channel_index, True), ""),
+        "volume": _safe("channels.getChannelVolume(" + str(channel_index) + ")", lambda: channels.getChannelVolume(channel_index, False, True), None),
+        "pan": _safe("channels.getChannelPan(" + str(channel_index) + ")", lambda: channels.getChannelPan(channel_index, True), None),
+        "muted": bool(_safe("channels.isChannelMuted(" + str(channel_index) + ")", lambda: channels.isChannelMuted(channel_index, True), False)),
+        "solo": bool(_safe("channels.isChannelSolo(" + str(channel_index) + ")", lambda: channels.isChannelSolo(channel_index, True), False)),
+        "selected": bool(_safe("channels.isChannelSelected(" + str(channel_index) + ")", lambda: channels.isChannelSelected(channel_index, True), False)),
+    })
+
 __fl_connector_bridge_snapshot__ = {
     "flVersion": _safe("ui.getVersion", lambda: ui.getVersion(4), None),
     "projectTitle": _safe("ui.getProgTitle", ui.getProgTitle, None),
@@ -92,6 +107,9 @@ __fl_connector_bridge_snapshot__ = {
         "tempo": _safe("mixer.getCurrentTempo", mixer.getCurrentTempo, None),
     },
     "tracks": tracks,
+    "channelCount": channel_count,
+    "selectedChannel": selected_channel,
+    "channels": channels_list,
     "errors": __fl_connector_bridge_errors__,
 }
 """.strip()
@@ -138,6 +156,13 @@ def _normalize_transport_snapshot(transport: dict[str, Any] | None) -> dict[str,
     return transport
 
 
+def _eval_optional(client: Any, expression: str, fallback: Any = None) -> Any:
+    try:
+        return client.eval(expression)
+    except Exception:
+        return fallback
+
+
 def _read_bridge_snapshot(client: Any) -> dict[str, Any]:
     snapshot = {key: client.eval(_snapshot_key_expression(key)) for key in SNAPSHOT_SCALAR_KEYS}
     snapshot["transport"] = _normalize_transport_snapshot(snapshot.get("transport"))
@@ -145,6 +170,13 @@ def _read_bridge_snapshot(client: Any) -> dict[str, Any]:
     snapshot["tracks"] = [
         client.eval(f'{SNAPSHOT_VARIABLE}["tracks"][{track_index}]')
         for track_index in range(track_count)
+    ]
+    snapshot["channelCount"] = _eval_optional(client, _snapshot_key_expression("channelCount"))
+    snapshot["selectedChannel"] = _eval_optional(client, _snapshot_key_expression("selectedChannel"))
+    channel_count = int(_eval_optional(client, f'len({SNAPSHOT_VARIABLE}["channels"])', 0) or 0)
+    snapshot["channels"] = [
+        client.eval(f'{SNAPSHOT_VARIABLE}["channels"][{channel_index}]')
+        for channel_index in range(channel_count)
     ]
     snapshot["errors"] = client.eval(_snapshot_key_expression("errors")) or []
     return snapshot

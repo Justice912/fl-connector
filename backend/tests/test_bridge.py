@@ -569,6 +569,10 @@ def test_read_only_probe_does_not_include_write_actions():
         "mixer.select",
         "plugins.set",
         "ui.set",
+        "channels.setChannel",
+        "channels.muteChannel",
+        "channels.soloChannel",
+        "channels.selectOneChannel",
     ]
 
     for call in banned_calls:
@@ -822,3 +826,57 @@ def test_bridge_set_tempo_maps_value_error_to_400(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         main_module.bridge_set_tempo(main_module.BridgeTempoRequest(bpm=120))
     assert exc.value.status_code == 400
+
+
+def test_probe_reads_channels_into_snapshot():
+    from app.bridge import probe_bridge
+
+    class FakeClient:
+        def exec(self, code):
+            self.last_code = code
+
+        def eval(self, expression):
+            values = {
+                '__fl_connector_bridge_snapshot__["flVersion"]': "Producer Edition v2025",
+                '__fl_connector_bridge_snapshot__["projectTitle"]': "Channel project",
+                '__fl_connector_bridge_snapshot__["selectedTrack"]': 0,
+                '__fl_connector_bridge_snapshot__["trackCount"]': 0,
+                '__fl_connector_bridge_snapshot__["transport"]': {
+                    "playing": False, "recording": False, "loopMode": 0,
+                    "songPosition": 0.0, "songPositionHint": "", "songLengthBars": None, "tempo": 120.0,
+                },
+                '__fl_connector_bridge_snapshot__["channelCount"]': 2,
+                '__fl_connector_bridge_snapshot__["selectedChannel"]': 1,
+                'len(__fl_connector_bridge_snapshot__["tracks"])': 0,
+                'len(__fl_connector_bridge_snapshot__["channels"])': 2,
+                '__fl_connector_bridge_snapshot__["channels"][0]': {
+                    "index": 0, "name": "Kick", "volume": 0.8, "pan": 0.0,
+                    "muted": False, "solo": False, "selected": False,
+                },
+                '__fl_connector_bridge_snapshot__["channels"][1]': {
+                    "index": 1, "name": "Snare", "volume": 0.7, "pan": -0.1,
+                    "muted": True, "solo": False, "selected": True,
+                },
+                '__fl_connector_bridge_snapshot__["errors"]': [],
+            }
+            return values[expression]
+
+        def close(self):
+            pass
+
+    snapshot = probe_bridge(client_factory=FakeClient)
+
+    assert snapshot.status == "connected"
+    assert snapshot.channelCount == 2
+    assert snapshot.selectedChannel == 1
+    assert [c.name for c in snapshot.channels] == ["Kick", "Snare"]
+    assert snapshot.channels[1].muted is True
+    assert snapshot.channels[1].selected is True
+
+
+def test_read_only_probe_includes_channel_getters_not_setters():
+    from app.bridge import READ_ONLY_FL_PROBE
+
+    assert "import channels" in READ_ONLY_FL_PROBE
+    assert "channels.getChannelName" in READ_ONLY_FL_PROBE
+    assert "channels.channelCount" in READ_ONLY_FL_PROBE
