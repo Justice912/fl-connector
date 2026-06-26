@@ -18,7 +18,11 @@ from .analysis_setup import build_analysis_setup_plan, install_analysis_worker, 
 from .bridge import (
     probe_bridge,
     run_transport_action,
+    select_channel,
     select_mixer_track,
+    set_channel,
+    set_channel_mute,
+    set_channel_solo,
     set_mixer_track,
     set_mixer_track_mute,
     set_mixer_track_solo,
@@ -123,6 +127,12 @@ class BridgeTempoRequest(BaseModel):
 
 
 class BridgeMixerTrackRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    volume: float | None = Field(default=None, ge=0, le=1)
+    pan: float | None = Field(default=None, ge=-1, le=1)
+
+
+class BridgeChannelRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     volume: float | None = Field(default=None, ge=0, le=1)
     pan: float | None = Field(default=None, ge=-1, le=1)
@@ -254,6 +264,40 @@ def bridge_mute_mixer_track(index: int) -> dict[str, Any]:
 def bridge_solo_mixer_track(index: int) -> dict[str, Any]:
     try:
         return set_mixer_track_solo(index).to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/bridge/channel/{index}")
+def bridge_set_channel(index: int, request: BridgeChannelRequest) -> dict[str, Any]:
+    try:
+        return set_channel(
+            index, name=request.name, volume=request.volume, pan=request.pan
+        ).to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/bridge/channel/{index}/select")
+def bridge_select_channel(index: int) -> dict[str, Any]:
+    try:
+        return select_channel(index).to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/bridge/channel/{index}/mute")
+def bridge_mute_channel(index: int) -> dict[str, Any]:
+    try:
+        return set_channel_mute(index).to_dict()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/bridge/channel/{index}/solo")
+def bridge_solo_channel(index: int) -> dict[str, Any]:
+    try:
+        return set_channel_solo(index).to_dict()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

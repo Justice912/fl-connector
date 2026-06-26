@@ -980,3 +980,52 @@ def test_channel_select_mute_solo_emit_expected_code():
         set_channel_mute(-1, client_factory=fake_factory(""))
     with pytest.raises(ValueError):
         set_channel_solo(600, client_factory=fake_factory(""))
+
+
+def test_bridge_channel_endpoints_route_to_functions(monkeypatch):
+    from app.contracts import BridgeSnapshot
+
+    def fake_snapshot(message):
+        return BridgeSnapshot.from_dict(
+            {
+                "status": "connected", "message": message, "source": "flapi",
+                "flVersion": "v2025", "projectTitle": "P", "selectedTrack": 0, "trackCount": 0,
+                "transport": {
+                    "playing": False, "recording": False, "loopMode": 0,
+                    "songPosition": 0.0, "songPositionHint": "", "songLengthBars": None, "tempo": 120.0,
+                },
+                "tracks": [], "setup": [], "errors": [],
+                "channelCount": 0, "selectedChannel": None, "channels": [],
+            }
+        )
+
+    calls = []
+    monkeypatch.setattr(main_module, "set_channel", lambda index, name=None, volume=None, pan=None: calls.append(("set", index, name, volume, pan)) or fake_snapshot("c"))
+    monkeypatch.setattr(main_module, "select_channel", lambda index: calls.append(("select", index)) or fake_snapshot("s"))
+    monkeypatch.setattr(main_module, "set_channel_mute", lambda index: calls.append(("mute", index)) or fake_snapshot("mu"))
+    monkeypatch.setattr(main_module, "set_channel_solo", lambda index: calls.append(("solo", index)) or fake_snapshot("so"))
+
+    assert main_module.bridge_set_channel(2, main_module.BridgeChannelRequest(name="Bass", volume=0.7, pan=0.0))["status"] == "connected"
+    assert main_module.bridge_select_channel(2)["status"] == "connected"
+    assert main_module.bridge_mute_channel(2)["status"] == "connected"
+    assert main_module.bridge_solo_channel(2)["status"] == "connected"
+
+    assert calls == [
+        ("set", 2, "Bass", 0.7, 0.0),
+        ("select", 2),
+        ("mute", 2),
+        ("solo", 2),
+    ]
+
+
+def test_bridge_set_channel_maps_value_error_to_400(monkeypatch):
+    import pytest
+    from fastapi import HTTPException
+
+    def boom(index, name=None, volume=None, pan=None):
+        raise ValueError("channel index must be between 0 and 511")
+
+    monkeypatch.setattr(main_module, "set_channel", boom)
+    with pytest.raises(HTTPException) as exc:
+        main_module.bridge_set_channel(2, main_module.BridgeChannelRequest(name="x"))
+    assert exc.value.status_code == 400
