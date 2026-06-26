@@ -880,3 +880,60 @@ def test_read_only_probe_includes_channel_getters_not_setters():
     assert "import channels" in READ_ONLY_FL_PROBE
     assert "channels.getChannelName" in READ_ONLY_FL_PROBE
     assert "channels.channelCount" in READ_ONLY_FL_PROBE
+
+
+def test_set_channel_builds_code_for_provided_fields():
+    from app.bridge import set_channel
+
+    captured = {}
+
+    class FakeClient:
+        def exec(self, code):
+            captured.setdefault("code", code)
+
+        def eval(self, expression):
+            values = {
+                '__fl_connector_bridge_snapshot__["flVersion"]': "v2025",
+                '__fl_connector_bridge_snapshot__["projectTitle"]': "Chan",
+                '__fl_connector_bridge_snapshot__["selectedTrack"]': 0,
+                '__fl_connector_bridge_snapshot__["trackCount"]': 0,
+                '__fl_connector_bridge_snapshot__["transport"]': {
+                    "playing": False, "recording": False, "loopMode": 0,
+                    "songPosition": 0.0, "songPositionHint": "", "songLengthBars": None, "tempo": None,
+                },
+                'len(__fl_connector_bridge_snapshot__["tracks"])': 0,
+                '__fl_connector_bridge_snapshot__["errors"]': [],
+            }
+            return values[expression]
+
+        def close(self):
+            pass
+
+    snapshot = set_channel(2, name='Lead "Bass"', volume=0.72, pan=-0.25, client_factory=FakeClient)
+    assert snapshot.status == "connected"
+    assert captured["code"] == (
+        "import channels\n"
+        'channels.setChannelName(2, "Lead \\"Bass\\"", useGlobalIndex=True)\n'
+        "channels.setChannelVolume(2, 0.72, useGlobalIndex=True)\n"
+        "channels.setChannelPan(2, -0.25, useGlobalIndex=True)"
+    )
+
+
+def test_set_channel_validates_inputs():
+    import pytest
+    from app.bridge import set_channel
+
+    with pytest.raises(ValueError):
+        set_channel(2)  # no fields
+    with pytest.raises(ValueError):
+        set_channel(600, name="x")  # index
+    with pytest.raises(ValueError):
+        set_channel(2, name="")  # empty name
+    with pytest.raises(ValueError):
+        set_channel(2, name="   ")  # whitespace-only name
+    with pytest.raises(ValueError):
+        set_channel(2, name="x" * 101)  # too-long name
+    with pytest.raises(ValueError):
+        set_channel(2, volume=2.0)  # volume
+    with pytest.raises(ValueError):
+        set_channel(2, pan=5.0)  # pan

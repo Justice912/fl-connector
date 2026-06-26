@@ -419,3 +419,40 @@ def set_mixer_track(
         changed.append("pan")
     message = f"Updated FL mixer track {index} ({', '.join(changed)})."
     return run_bridge_write("\n".join(lines), message, client_factory=client_factory)
+
+
+def _require_channel_index(index: int) -> None:
+    if not 0 <= index <= 511:
+        raise ValueError("channel index must be between 0 and 511")
+
+
+def set_channel(
+    index: int,
+    *,
+    name: str | None = None,
+    volume: float | None = None,
+    pan: float | None = None,
+    client_factory: Callable[[], Any] | None = None,
+) -> BridgeSnapshot:
+    _require_channel_index(index)
+    if name is None and volume is None and pan is None:
+        raise ValueError("provide at least one of name, volume, or pan")
+    lines = ["import channels"]
+    changed: list[str] = []
+    if name is not None:
+        if not name.strip() or len(name) > 100:
+            raise ValueError("channel name must be 1-100 characters")
+        lines.append(f"channels.setChannelName({index}, {json.dumps(name)}, useGlobalIndex=True)")
+        changed.append("name")
+    if volume is not None:
+        if not 0 <= volume <= 1:
+            raise ValueError("volume must be between 0 and 1")
+        lines.append(f"channels.setChannelVolume({index}, {round(volume, 4)}, useGlobalIndex=True)")
+        changed.append("volume")
+    if pan is not None:
+        if not -1 <= pan <= 1:
+            raise ValueError("pan must be between -1 and 1")
+        lines.append(f"channels.setChannelPan({index}, {round(pan, 4)}, useGlobalIndex=True)")
+        changed.append("pan")
+    message = f"Updated FL channel {index} ({', '.join(changed)})."
+    return run_bridge_write("\n".join(lines), message, client_factory=client_factory)
