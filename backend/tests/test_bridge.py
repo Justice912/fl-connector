@@ -751,6 +751,28 @@ def test_select_mute_solo_emit_expected_code():
         select_mixer_track(999, client_factory=fake_factory(""))
 
 
+def test_set_mixer_track_rejects_invalid_names():
+    from app.bridge import set_mixer_track
+
+    # Empty, whitespace-only, and >100 chars are all rejected before any FL call,
+    # so no client is needed — the ValueError must precede run_bridge_write.
+    with pytest.raises(ValueError):
+        set_mixer_track(3, name="")
+    with pytest.raises(ValueError):
+        set_mixer_track(3, name="   ")
+    with pytest.raises(ValueError):
+        set_mixer_track(3, name="x" * 101)
+
+
+def test_mute_solo_reject_out_of_range_index():
+    from app.bridge import set_mixer_track_mute, set_mixer_track_solo
+
+    with pytest.raises(ValueError):
+        set_mixer_track_mute(999)
+    with pytest.raises(ValueError):
+        set_mixer_track_solo(-1)
+
+
 def test_bridge_write_endpoints_route_to_functions(monkeypatch):
     from app.contracts import BridgeSnapshot
 

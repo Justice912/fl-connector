@@ -365,8 +365,7 @@ def set_mixer_track(
     pan: float | None = None,
     client_factory: Callable[[], Any] | None = None,
 ) -> BridgeSnapshot:
-    if not 0 <= index <= 125:
-        raise ValueError("mixer track index must be between 0 and 125")
+    _require_track_index(index)
     if name is None and volume is None and pan is None:
         raise ValueError("provide at least one of name, volume, or pan")
     lines = ["import mixer"]
