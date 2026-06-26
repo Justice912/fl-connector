@@ -937,3 +937,46 @@ def test_set_channel_validates_inputs():
         set_channel(2, volume=2.0)  # volume
     with pytest.raises(ValueError):
         set_channel(2, pan=5.0)  # pan
+
+
+def test_channel_select_mute_solo_emit_expected_code():
+    import pytest
+    from app.bridge import select_channel, set_channel_mute, set_channel_solo
+
+    def fake_factory(expected_first):
+        class FakeClient:
+            def exec(self, code):
+                if not hasattr(self, "first"):
+                    self.first = code
+                    assert code == expected_first
+
+            def eval(self, expression):
+                values = {
+                    '__fl_connector_bridge_snapshot__["flVersion"]': "v2025",
+                    '__fl_connector_bridge_snapshot__["projectTitle"]': "C",
+                    '__fl_connector_bridge_snapshot__["selectedTrack"]': 0,
+                    '__fl_connector_bridge_snapshot__["trackCount"]': 0,
+                    '__fl_connector_bridge_snapshot__["transport"]': {
+                        "playing": False, "recording": False, "loopMode": 0,
+                        "songPosition": 0.0, "songPositionHint": "", "songLengthBars": None, "tempo": None,
+                    },
+                    'len(__fl_connector_bridge_snapshot__["tracks"])': 0,
+                    '__fl_connector_bridge_snapshot__["errors"]': [],
+                }
+                return values[expression]
+
+            def close(self):
+                pass
+
+        return FakeClient
+
+    assert select_channel(2, client_factory=fake_factory("import channels\nchannels.selectOneChannel(2, useGlobalIndex=True)")).status == "connected"
+    assert set_channel_mute(2, client_factory=fake_factory("import channels\nchannels.muteChannel(2, useGlobalIndex=True)")).status == "connected"
+    assert set_channel_solo(2, client_factory=fake_factory("import channels\nchannels.soloChannel(2, useGlobalIndex=True)")).status == "connected"
+
+    with pytest.raises(ValueError):
+        select_channel(600, client_factory=fake_factory(""))
+    with pytest.raises(ValueError):
+        set_channel_mute(-1, client_factory=fake_factory(""))
+    with pytest.raises(ValueError):
+        set_channel_solo(600, client_factory=fake_factory(""))

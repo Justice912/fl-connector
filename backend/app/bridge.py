@@ -456,3 +456,36 @@ def set_channel(
         changed.append("pan")
     message = f"Updated FL channel {index} ({', '.join(changed)})."
     return run_bridge_write("\n".join(lines), message, client_factory=client_factory)
+
+
+def select_channel(
+    index: int, client_factory: Callable[[], Any] | None = None
+) -> BridgeSnapshot:
+    _require_channel_index(index)
+    return run_bridge_write(
+        f"import channels\nchannels.selectOneChannel({index}, useGlobalIndex=True)",
+        f"Selected FL channel {index}.",
+        client_factory=client_factory,
+    )
+
+
+def set_channel_mute(
+    index: int, client_factory: Callable[[], Any] | None = None
+) -> BridgeSnapshot:
+    _require_channel_index(index)
+    return run_bridge_write(
+        f"import channels\nchannels.muteChannel({index}, useGlobalIndex=True)",
+        f"Toggled mute on FL channel {index}.",
+        client_factory=client_factory,
+    )
+
+
+def set_channel_solo(
+    index: int, client_factory: Callable[[], Any] | None = None
+) -> BridgeSnapshot:
+    _require_channel_index(index)
+    return run_bridge_write(
+        f"import channels\nchannels.soloChannel({index}, useGlobalIndex=True)",
+        f"Toggled solo on FL channel {index}.",
+        client_factory=client_factory,
+    )
