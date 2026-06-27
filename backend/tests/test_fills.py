@@ -72,5 +72,6 @@ def test_fill_notes_valid_and_within_bar():
 
 def test_unknown_family_raises_and_empty_returns_empty():
     assert apply_fills([], family="amapiano", bars=4) == []
+    assert apply_fills([], family="nope", bars=4) == []
     with pytest.raises(ValueError):
         apply_fills(_steady_drums(4), family="nope", bars=4)

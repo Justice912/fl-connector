@@ -71,10 +71,10 @@ def _fill_bars(bars: int) -> set[int]:
 
 
 def apply_fills(notes: list[Note], *, family: str, bars: int) -> list[Note]:
-    if family not in FILL_TEMPLATES:
-        raise ValueError(f"unknown fill family: {family}")
     if not notes:
         return []
+    if family not in FILL_TEMPLATES:
+        raise ValueError(f"unknown fill family: {family}")
     template = FILL_TEMPLATES[family]
     fill_bars = _fill_bars(bars)
     result: list[Note] = []
