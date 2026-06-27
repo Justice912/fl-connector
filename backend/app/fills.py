@@ -23,6 +23,8 @@ FILL_TEMPLATES: dict[str, tuple[FillNote, ...]] = {
         (70, 3.625, 0.06, 0.53, 6),
         (70, 3.75, 0.06, 0.57, 6),
         (70, 3.875, 0.06, 0.62, 6),
+        # open hat sits on the 3.75 swing grid point, so the groove pass pushes it late;
+        # its in-bar guarantee relies on the generator's post-groove boundary clamp.
         (46, 3.75, 0.18, 0.60, 4),
     ),
     "afro": (

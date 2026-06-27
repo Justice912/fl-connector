@@ -129,3 +129,23 @@ def test_drum_fills_vary_phrase_end_bars():
     base = window_pitches(0)
     assert window_pitches(3) != base, "bar 4 should carry a fill"
     assert window_pitches(7) != base, "bar 8 should carry a fill"
+
+
+@pytest.mark.parametrize("genre", ["Amapiano", "Afrobeats", "Hip Hop"])
+@pytest.mark.parametrize("bars", [4, 8, 16])
+def test_drum_fills_stay_in_bar_and_fire_for_all_genres(genre, bars):
+    draft = generate_song_draft(prompt=f"{genre} song", genre=genre, key="A", scale="minor", bars=bars)
+    # Contract boundary holds for every note of every part even after the groove pass
+    # jitters/swings the fill notes near beat 4 (relies on the generator's post-groove clamp).
+    for part in draft.parts:
+        for note in part.payload.notes:
+            assert note.startBeats + note.durationBeats <= bars * 4 + 0.001
+    # The drum fill actually fires for this genre: the final phrase-end bar's last beat
+    # differs from a non-fill bar's (bar index 0).
+    drums = next(p for p in draft.parts if p.role == "drums")
+
+    def window_pitches(bar):
+        lo, hi = bar * 4 + 2.9, bar * 4 + 4.05
+        return sorted(n.pitch for n in drums.payload.notes if lo <= n.startBeats < hi)
+
+    assert window_pitches(bars - 1) != window_pitches(0)
