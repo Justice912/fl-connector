@@ -6,6 +6,7 @@ from dataclasses import replace
 from .contracts import ArrangementSection, Note, NotePayload, SongDraft, SongPart
 from .groove import apply_groove, groove_seed
 from .harmony import build_chords, chord_roots
+from .fills import apply_fills
 
 ROOTS = {
     "C": 48,
@@ -178,7 +179,7 @@ def _generate_amapiano_song(
                 key=key,
                 scale=scale,
                 bars=bars,
-                notes=_groove(_amapiano_drums(bars), "drums", genre, key, bars, prompt),
+                notes=_groove(apply_fills(_amapiano_drums(bars), family=genre_family(genre), bars=bars), "drums", genre, key, bars, prompt),
             ),
         ),
         SongPart.create(
@@ -568,7 +569,7 @@ def _generate_generic_song(
     hints = _FAMILY_PLUGIN_HINTS[family]
     melody_builder = _FAMILY_MELODY[family]
     role_notes = {
-        "drums": _groove(_generic_drums(bars), "drums", genre, key, bars, prompt),
+        "drums": _groove(apply_fills(_generic_drums(bars), family=family, bars=bars), "drums", genre, key, bars, prompt),
         "bass": _groove(_FAMILY_BASS[family](chord_roots(family, key, scale, bars), bars), "bass", genre, key, bars, prompt),
         "chords": _groove(build_chords(family, key, scale, bars), "chords", genre, key, bars, prompt),
         "melody": _groove(melody_builder(key, scale, bars), "melody", genre, key, bars, prompt),

@@ -114,3 +114,18 @@ def test_afro_and_hiphop_bass_follow_progression():
             bar = int(n.startBeats // 4)
             bar_min[bar] = min(bar_min.get(bar, 999), n.pitch)
         assert len(set(bar_min.values())) > 1, f"{genre} bass should follow the progression"
+
+
+def test_drum_fills_vary_phrase_end_bars():
+    # bars 4 and 8 (indices 3 & 7) are fill bars; bar 1 (index 0) is not. The fill changes
+    # the last-beat note set, so the phrase-end last beats differ from bar 1's.
+    draft = generate_song_draft(prompt="deep amapiano song", genre="Amapiano", key="A", scale="minor", bars=8)
+    drums = next(p for p in draft.parts if p.role == "drums")
+
+    def window_pitches(bar):
+        lo, hi = bar * 4 + 2.9, bar * 4 + 4.05
+        return sorted(n.pitch for n in drums.payload.notes if lo <= n.startBeats < hi)
+
+    base = window_pitches(0)
+    assert window_pitches(3) != base, "bar 4 should carry a fill"
+    assert window_pitches(7) != base, "bar 8 should carry a fill"
