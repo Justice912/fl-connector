@@ -90,3 +90,27 @@ def test_amapiano_song_bass_follows_progression():
         bar = int(n.startBeats // 4)
         bar_min[bar] = min(bar_min.get(bar, 999), n.pitch)
     assert len(set(bar_min.values())) > 1, "bass should follow the progression, not stay on tonic"
+
+
+def test_genres_have_distinct_chord_pitches():
+    def chord_pitches(genre):
+        draft = generate_song_draft(prompt=f"{genre} song", genre=genre, key="A", scale="minor", bars=4)
+        chords = next(p for p in draft.parts if p.role == "chords")
+        return tuple(sorted(n.pitch for n in chords.payload.notes))
+    ama = chord_pitches("Amapiano")
+    afro = chord_pitches("Afrobeats")
+    hh = chord_pitches("Hip Hop")
+    assert ama != afro
+    assert ama != hh
+    assert afro != hh
+
+
+def test_afro_and_hiphop_bass_follow_progression():
+    for genre in ("Afrobeats", "Hip Hop"):
+        draft = generate_song_draft(prompt=f"{genre} song", genre=genre, key="A", scale="minor", bars=4)
+        bass = next(p for p in draft.parts if p.role == "bass")
+        bar_min: dict[int, int] = {}
+        for n in bass.payload.notes:
+            bar = int(n.startBeats // 4)
+            bar_min[bar] = min(bar_min.get(bar, 999), n.pitch)
+        assert len(set(bar_min.values())) > 1, f"{genre} bass should follow the progression"

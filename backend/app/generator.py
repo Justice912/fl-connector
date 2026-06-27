@@ -292,22 +292,6 @@ def _amapiano_bass(roots: list[int], bars: int) -> list[Note]:
     return notes
 
 
-def _amapiano_chords(key: str, scale: str, bars: int) -> list[Note]:
-    pool = _scale_notes(key, scale)
-    root, third, fifth, seventh = pool[0], pool[2], pool[4], pool[6]
-    chord_shapes = [
-        [root, third, fifth, seventh],
-        [pool[5] - 12, root, third, fifth],
-        [fifth - 12, seventh, pool[1] + 12, pool[4]],
-        [pool[3] - 12, seventh, root + 12, third + 12],
-    ]
-    notes: list[Note] = []
-    for bar in range(bars):
-        for pitch in chord_shapes[bar % len(chord_shapes)]:
-            notes.append(Note(pitch, bar * 4, 3.65, 0.42, 8))
-    return notes
-
-
 def _amapiano_log_drum(key: str, scale: str, bars: int) -> list[Note]:
     pool = _scale_notes(key, scale)
     root, third, fifth, seventh, octave = pool[0], pool[2], pool[4], pool[6], pool[7]
@@ -463,21 +447,38 @@ def _generic_drums(bars: int) -> list[Note]:
     return notes
 
 
-def _generic_bass(key: str, scale: str, bars: int) -> list[Note]:
-    pool = _scale_notes(key, scale)
-    root = pool[0] - 12
-    fifth = pool[4] - 12
+def _afro_bass(roots: list[int], bars: int) -> list[Note]:
+    # rolling syncopated 8th-bounce: root / octave / fifth, denser than the old shared bass
     notes: list[Note] = []
     for bar in range(bars):
         base = bar * 4
-        notes.append(Note(root, base, 0.9, 0.74, 5))
-        notes.append(Note(root, base + 1.5, 0.5, 0.6, 5))
-        notes.append(Note(fifth, base + 2.5, 0.5, 0.64, 5))
-        notes.append(Note(root, base + 3.5, 0.4, 0.56, 5))
+        root = roots[bar]
+        octave = root + 12
+        fifth = root + 7
+        notes.append(Note(root, base + 0.0, 0.45, 0.74, 5))
+        notes.append(Note(octave, base + 0.5, 0.3, 0.56, 5))
+        notes.append(Note(fifth, base + 1.5, 0.4, 0.62, 5))
+        notes.append(Note(root, base + 2.0, 0.45, 0.7, 5))
+        notes.append(Note(octave, base + 2.5, 0.3, 0.54, 5))
+        notes.append(Note(root, base + 3.25, 0.4, 0.6, 5))
+    return notes
+
+
+def _hiphop_bass(roots: list[int], bars: int) -> list[Note]:
+    # sparse 808: long root on the downbeat, a pickup, and an octave pop; groove swings it
+    notes: list[Note] = []
+    for bar in range(bars):
+        base = bar * 4
+        root = roots[bar]
+        octave = root + 12
+        notes.append(Note(root, base + 0.0, 1.5, 0.8, 5))
+        notes.append(Note(root, base + 2.5, 1.0, 0.66, 5))
+        notes.append(Note(octave, base + 3.5, 0.4, 0.58, 5))
     return notes
 
 
 _FAMILY_MELODY = {"afro": _afro_melody, "hiphop": _hiphop_melody}
+_FAMILY_BASS = {"afro": _afro_bass, "hiphop": _hiphop_bass}
 _FAMILY_PATTERN_NAMES = {
     "afro": {
         "drums": "Afrobeats kit groove",
@@ -514,6 +515,7 @@ _GENERIC_ROLES = {"drums", "bass", "chords", "melody"}
 def _validate_family_tables() -> None:
     table_keys = (
         _FAMILY_MELODY.keys(),
+        _FAMILY_BASS.keys(),
         _FAMILY_PATTERN_NAMES.keys(),
         _FAMILY_PLUGIN_HINTS.keys(),
     )
@@ -567,8 +569,8 @@ def _generate_generic_song(
     melody_builder = _FAMILY_MELODY[family]
     role_notes = {
         "drums": _groove(_generic_drums(bars), "drums", genre, key, bars, prompt),
-        "bass": _groove(_generic_bass(key, scale, bars), "bass", genre, key, bars, prompt),
-        "chords": _groove(_amapiano_chords(key, scale, bars), "chords", genre, key, bars, prompt),
+        "bass": _groove(_FAMILY_BASS[family](chord_roots(family, key, scale, bars), bars), "bass", genre, key, bars, prompt),
+        "chords": _groove(build_chords(family, key, scale, bars), "chords", genre, key, bars, prompt),
         "melody": _groove(melody_builder(key, scale, bars), "melody", genre, key, bars, prompt),
     }
     roles = ["drums", "bass", "chords", "melody"]
