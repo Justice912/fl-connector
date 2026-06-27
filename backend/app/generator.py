@@ -5,6 +5,7 @@ from dataclasses import replace
 
 from .contracts import ArrangementSection, Note, NotePayload, SongDraft, SongPart
 from .groove import apply_groove, groove_seed
+from .harmony import build_chords, chord_roots
 
 ROOTS = {
     "C": 48,
@@ -193,7 +194,7 @@ def _generate_amapiano_song(
                 key=key,
                 scale=scale,
                 bars=bars,
-                notes=_groove(_amapiano_bass(key, scale, bars), "bass", genre, key, bars, prompt),
+                notes=_groove(_amapiano_bass(chord_roots("amapiano", key, scale, bars), bars), "bass", genre, key, bars, prompt),
             ),
         ),
         SongPart.create(
@@ -209,7 +210,7 @@ def _generate_amapiano_song(
                 key=key,
                 scale=scale,
                 bars=bars,
-                notes=_groove(_amapiano_chords(key, scale, bars), "chords", genre, key, bars, prompt),
+                notes=_groove(build_chords("amapiano", key, scale, bars), "chords", genre, key, bars, prompt),
             ),
         ),
         SongPart.create(
@@ -278,13 +279,12 @@ def _amapiano_drums(bars: int) -> list[Note]:
     return notes
 
 
-def _amapiano_bass(key: str, scale: str, bars: int) -> list[Note]:
-    pool = _scale_notes(key, scale)
-    root = pool[0] - 12
-    fifth = pool[4] - 12
+def _amapiano_bass(roots: list[int], bars: int) -> list[Note]:
     notes: list[Note] = []
     for bar in range(bars):
         base = bar * 4
+        root = roots[bar]
+        fifth = root + 7
         notes.append(Note(root, base, 0.72, 0.74, 5))
         notes.append(Note(root, base + 1.5, 0.42, 0.54, 5))
         notes.append(Note(fifth, base + 2.0, 0.62, 0.68, 5))
@@ -399,12 +399,13 @@ def _generate_amapiano_payload(
                 )
             )
 
+    roots = chord_roots("amapiano", key, scale, bars)
     bass_offsets = [0.0, 2.0]
     for bar in range(bars):
         for offset in bass_offsets:
             notes.append(
                 Note(
-                    pitch=root - 12,
+                    pitch=roots[bar],
                     startBeats=bar * 4 + offset,
                     durationBeats=0.62,
                     velocity=0.68,
@@ -413,18 +414,7 @@ def _generate_amapiano_payload(
             )
 
     if "chord" in prompt.lower() or "deep" in prompt.lower() or "hypnotic" in prompt.lower():
-        chord_tones = [root, third, fifth, seventh]
-        for bar in range(bars):
-            for pitch in chord_tones:
-                notes.append(
-                    Note(
-                        pitch=pitch,
-                        startBeats=bar * 4,
-                        durationBeats=3.75,
-                        velocity=0.44,
-                        color=8,
-                    )
-                )
+        notes.extend(build_chords("amapiano", key, scale, bars))
 
     return _payload(
         title=infer_title(prompt, genre),

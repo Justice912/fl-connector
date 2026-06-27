@@ -68,3 +68,25 @@ def test_groove_preserves_note_count_and_determinism():
     # every note still satisfies the contract after grooving
     for note in first.notes:
         note.validate()
+
+
+def test_amapiano_song_chords_use_extended_voicing():
+    # amapiano 9th voicing = 5 sustained tones per bar; the chords role is never swung,
+    # so each chord stays on its exact bar boundary.
+    draft = generate_song_draft(prompt="deep amapiano song", genre="Amapiano", key="A", scale="minor", bars=4)
+    chords = next(p for p in draft.parts if p.role == "chords")
+    per_bar: dict[int, int] = {}
+    for n in chords.payload.notes:
+        per_bar[int(n.startBeats // 4)] = per_bar.get(int(n.startBeats // 4), 0) + 1
+    assert per_bar and all(count == 5 for count in per_bar.values())
+
+
+def test_amapiano_song_bass_follows_progression():
+    # progression i-VI-III-VII is not constant, so the per-bar bass root must move.
+    draft = generate_song_draft(prompt="deep amapiano song", genre="Amapiano", key="A", scale="minor", bars=4)
+    bass = next(p for p in draft.parts if p.role == "bass")
+    bar_min: dict[int, int] = {}
+    for n in bass.payload.notes:
+        bar = int(n.startBeats // 4)
+        bar_min[bar] = min(bar_min.get(bar, 999), n.pitch)
+    assert len(set(bar_min.values())) > 1, "bass should follow the progression, not stay on tonic"
