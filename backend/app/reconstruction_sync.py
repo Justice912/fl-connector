@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from .bridge import probe_bridge, run_bridge_write
 from .contracts import BridgeSnapshot
 from .reconstruction_contracts import ReconstructionProject
 
@@ -91,3 +93,50 @@ def build_sync_plan(project: ReconstructionProject, snapshot: BridgeSnapshot) ->
                 )
             )
     return SyncPlan(tempo=tempo, channels=channels, mixer=mixer, skipped=skipped)
+
+
+def _status_items(items: list[SyncAssignment], status: str) -> list[dict[str, Any]]:
+    return [{"index": item.index, "name": item.name, "status": status} for item in items]
+
+
+def apply_reconstruction_sync(
+    project: ReconstructionProject,
+    client_factory: Callable[[], Any] | None = None,
+) -> dict[str, Any]:
+    snapshot = probe_bridge(client_factory)
+    if snapshot.status != "connected":
+        return {
+            "connected": False,
+            "message": snapshot.message,
+            "tempo": None,
+            "channels": [],
+            "mixer": [],
+            "skipped": [],
+            "bridge": snapshot.to_dict(),
+        }
+    plan = build_sync_plan(project, snapshot)
+    if plan.is_empty():
+        return {
+            "connected": True,
+            "message": "Nothing to sync yet — add channels/mixer tracks in FL, then sync again.",
+            "tempo": None,
+            "channels": [],
+            "mixer": [],
+            "skipped": [skip.to_dict() for skip in plan.skipped],
+            "bridge": snapshot.to_dict(),
+        }
+    result = run_bridge_write(
+        plan.fl_code(),
+        "Synced FL session to the reconstruction.",
+        client_factory,
+    )
+    status = "applied" if result.status == "connected" else "failed"
+    return {
+        "connected": True,
+        "message": result.message,
+        "tempo": {"value": plan.tempo, "status": status} if plan.tempo is not None else None,
+        "channels": _status_items(plan.channels, status),
+        "mixer": _status_items(plan.mixer, status),
+        "skipped": [skip.to_dict() for skip in plan.skipped],
+        "bridge": result.to_dict(),
+    }

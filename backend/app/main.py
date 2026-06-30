@@ -44,6 +44,7 @@ from .reconstruction_contracts import (
     ReconstructedPart,
 )
 from .reconstruction_export import build_reconstruction_export
+from .reconstruction_sync import apply_reconstruction_sync
 from .reconstruction_store import MAX_PROJECT_BYTES, ReconstructionStore, UploadCandidate
 from .store import PayloadStore
 
@@ -806,6 +807,15 @@ def export_reconstruction_midi(project_id: str) -> Response:
         media_type="audio/midi",
         headers={"Content-Disposition": f'attachment; filename="{filename}.mid"'},
     )
+
+
+@app.post("/api/reconstructions/{project_id}/sync-fl")
+def sync_reconstruction_to_fl(project_id: str) -> dict[str, Any]:
+    try:
+        project = RECONSTRUCTION_STORE.get(project_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="reconstruction project not found") from exc
+    return apply_reconstruction_sync(project)
 
 
 def _analysis_runner() -> AnalysisJobRunner:

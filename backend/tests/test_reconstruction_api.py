@@ -369,3 +369,19 @@ def test_export_midi_404_for_unknown_and_400_when_no_midi_parts(tmp_path, monkey
 
     assert missing.status_code == 404
     assert no_midi.status_code == 400
+
+
+def test_sync_fl_endpoint_returns_report(tmp_path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    project = _seed_midi_project(main.RECONSTRUCTION_STORE)
+
+    # bridge not connected in the test environment -> a clean disconnected report, not a 500
+    response = client.post(f"/api/reconstructions/{project.id}/sync-fl")
+    assert response.status_code == 200
+    assert response.json()["connected"] is False
+
+
+def test_sync_fl_endpoint_404_for_unknown(tmp_path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    response = client.post("/api/reconstructions/nope/sync-fl")
+    assert response.status_code == 404
