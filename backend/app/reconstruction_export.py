@@ -8,6 +8,7 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from .contracts import NotePayload
+from .midi_export import reconstruction_to_midi
 from .reconstruction_contracts import ReconstructionProject
 
 PPQ = 480
@@ -57,6 +58,8 @@ def build_reconstruction_export(project: ReconstructionProject, project_dir: Pat
             "guide-manifest.json",
             _json([item.to_dict() for item in project.guideSteps]),
         )
+        if any(part.outputMode == "midi" for part in project.parts):
+            archive.writestr("arrangement.mid", reconstruction_to_midi(project))
         for part in project.parts:
             if part.outputMode == "midi":
                 for pattern in part.patterns:
