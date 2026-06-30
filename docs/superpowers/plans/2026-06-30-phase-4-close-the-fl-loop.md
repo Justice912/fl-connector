@@ -177,7 +177,7 @@ def _seed_midi_project(reconstruction_store):
     from app.contracts import Note, NotePayload
     from app.reconstruction_contracts import PatternSlice, ReconstructedPart
 
-    project = reconstruction_store.create(title="Owned rebuild", rightsAccepted=True)
+    project = reconstruction_store.create_project(title="Owned rebuild", rights_accepted=True)
     payload = NotePayload.create(
         title="Bass bars 1-1", sourcePrompt="Reconstructed", genre="South African dance",
         bpm=112, key="G", scale="minor", bars=1, notes=[Note(40, 0.0, 1.0, 0.8)],
@@ -204,8 +204,7 @@ def test_export_midi_returns_multitrack_file(tmp_path, monkeypatch):
 def test_export_midi_404_for_unknown_and_400_when_no_midi_parts(tmp_path, monkeypatch):
     client = isolated_client(tmp_path, monkeypatch)
     missing = client.get("/api/reconstructions/does-not-exist/export-midi")
-    empty = main.RECONSTRUCTION_STORE.create(title="No parts", rightsAccepted=True)
-    main.RECONSTRUCTION_STORE.save(empty)
+    empty = main.RECONSTRUCTION_STORE.create_project(title="No parts", rights_accepted=True)
     no_midi = client.get(f"/api/reconstructions/{empty.id}/export-midi")
 
     assert missing.status_code == 404
@@ -795,7 +794,7 @@ Add to `backend/tests/test_reconstruction_export.py`:
 def test_export_zip_contains_full_arrangement_spine(tmp_path):
     from app.reconstruction_export import build_reconstruction_export
 
-    project = _project()  # the existing helper in this file that has a MIDI part
+    project = project_with_pattern()  # existing helper in this file; has a MIDI "Bass" part
     bundle_bytes = build_reconstruction_export(project, tmp_path)
     from io import BytesIO
     from zipfile import ZipFile
@@ -805,8 +804,6 @@ def test_export_zip_contains_full_arrangement_spine(tmp_path):
     assert "arrangement.mid" in names
     assert "midi/Bass/Bass A.mid" in names  # per-pattern files still present
 ```
-
-> If the existing project-builder in this test file is not named `_project`, reuse whatever fixture/helper `test_export_zip_contains_project_midi_and_reports` already uses to construct its project (same object).
 
 - [ ] **Step 2: Run test to verify it fails**
 
