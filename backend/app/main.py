@@ -34,7 +34,7 @@ from .fl_scripts import install_piano_roll_script
 from .generator import generate_payload, generate_song_draft
 from .inventory import InventoryScanner, InventorySnapshot
 from .mastering import generate_mastering_plan
-from .midi_export import payload_to_midi, song_to_midi
+from .midi_export import payload_to_midi, reconstruction_to_midi, song_to_midi
 from .paths import detect_paths
 from .reconstruction_compiler import ReconstructionCompiler
 from .reconstruction_contracts import (
@@ -788,6 +788,23 @@ def export_reconstruction(project_id: str) -> StreamingResponse:
         BytesIO(bundle),
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename or "reconstruction"}.zip"'},
+    )
+
+
+@app.get("/api/reconstructions/{project_id}/export-midi")
+def export_reconstruction_midi(project_id: str) -> Response:
+    try:
+        project = RECONSTRUCTION_STORE.get(project_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="reconstruction project not found") from exc
+    if not any(part.outputMode == "midi" for part in project.parts):
+        raise HTTPException(status_code=400, detail="project has no MIDI parts to export")
+    data = reconstruction_to_midi(project)
+    filename = _safe_filename(project.title) or "reconstruction"
+    return Response(
+        content=data,
+        media_type="audio/midi",
+        headers={"Content-Disposition": f'attachment; filename="{filename}.mid"'},
     )
 
 
