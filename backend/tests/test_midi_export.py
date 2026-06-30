@@ -102,3 +102,74 @@ def test_muted_notes_are_excluded():
     pitches = {event[3] for event in _note_events([live, muted], 0)}
     assert 60 in pitches
     assert 62 not in pitches
+
+
+def _reconstruction_with_midi_part():
+    from app.contracts import Note, NotePayload
+    from app.reconstruction_contracts import (
+        AnalysisSummary,
+        PatternSlice,
+        ReconstructedPart,
+        ReconstructionProject,
+    )
+
+    project = ReconstructionProject.create(title="Owned rebuild", rightsAccepted=True)
+    payload = NotePayload.create(
+        title="Bass bars 1-2",
+        sourcePrompt="Reconstructed",
+        genre="South African dance",
+        bpm=112,
+        key="G",
+        scale="minor",
+        bars=2,
+        notes=[Note(40, 0.0, 1.0, 0.8), Note(43, 4.0, 1.0, 0.8)],
+    )
+    pattern = PatternSlice.create(name="Bass bars 1-2", startBar=3, payload=payload)
+    bass = ReconstructedPart.create(
+        sourceStemId="stem-1",
+        name="Bass",
+        role="bass",
+        outputMode="midi",
+        confidence=0.9,
+        patterns=[pattern],
+    )
+    vocals = ReconstructedPart.create(
+        sourceStemId="stem-2",
+        name="Vocals",
+        role="vocals",
+        outputMode="audio",
+        confidence=0.95,
+        audioRelativePath="audio/vocals.wav",
+    )
+    summary = AnalysisSummary.from_dict(
+        {"bpm": 112, "bpmConfidence": 0.8, "key": "G", "scale": "minor",
+         "keyConfidence": 0.8, "timeSignature": "4/4", "durationSeconds": 8.0,
+         "integratedLoudness": None, "peakDb": None, "stereoWidth": None, "sections": []}
+    )
+    return project.with_changes(analysisSummary=summary, parts=[bass, vocals])
+
+
+def test_reconstruction_to_midi_one_track_per_midi_part_with_absolute_notes():
+    from app.midi_export import reconstruction_to_midi
+
+    project = _reconstruction_with_midi_part()
+    parsed = parse_midi(reconstruction_to_midi(project))
+
+    # conductor + 1 MIDI part (the audio part is excluded)
+    assert parsed["format"] == 1
+    assert parsed["division"] == 96
+    assert parsed["ntrks"] == 2
+    assert parsed["tracks"][0]["tempo"] == round(60_000_000 / 112)
+    assert parsed["tracks"][1]["name"] == "Bass"
+
+    # pattern startBar=3 -> +8 beats; notes at 0.0 and 4.0 -> beats 8 and 12 -> ticks 768, 1152
+    ticks = sorted(note[0] for note in parsed["tracks"][1]["notes"])
+    assert ticks == [round(8 * 96), round(12 * 96)]
+
+
+def test_reconstruction_to_midi_excludes_audio_parts():
+    from app.midi_export import reconstruction_to_midi
+
+    project = _reconstruction_with_midi_part()
+    parsed = parse_midi(reconstruction_to_midi(project))
+    assert [track["name"] for track in parsed["tracks"][1:]] == ["Bass"]
