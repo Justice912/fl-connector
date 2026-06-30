@@ -12,6 +12,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Send,
   SlidersHorizontal,
   Trash2,
   Upload,
@@ -411,6 +412,72 @@ function MixPlan({ plan }) {
   );
 }
 
+function SyncReportView({ report }) {
+  if (!report.connected) {
+    return <div className="sync-report disconnected">FL not connected: {report.message}</div>;
+  }
+  return (
+    <div className="sync-report">
+      {report.tempo && <p>Tempo set to {report.tempo.value} BPM ({report.tempo.status}).</p>}
+      <p>
+        {report.channels.length} channel{report.channels.length === 1 ? '' : 's'} named,{' '}
+        {report.mixer.length} mixer track{report.mixer.length === 1 ? '' : 's'} named.
+      </p>
+      {report.skipped.length > 0 && (
+        <ul className="sync-skipped">
+          {report.skipped.map((skip, index) => (
+            <li key={`${skip.kind}-${index}`}>{skip.message}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function SendToFl({ project, client, busy, onError }) {
+  const [report, setReport] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const hasMidi = project.parts.some((part) => part.outputMode === 'midi');
+
+  async function sync() {
+    setSyncing(true);
+    onError('');
+    try {
+      setReport(await client.syncReconstructionToFl(project.id));
+    } catch (reason) {
+      onError(reason.message);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  return (
+    <section className="rebuild-section send-to-fl">
+      <header><div><p>Send to FL</p><h2>One-drag handoff</h2></div><Send size={20} /></header>
+      <div className="send-to-fl-actions">
+        <button
+          className="primary-button rebuild-inline"
+          disabled={busy || !hasMidi}
+          onClick={() => client.exportReconstructionMidi(project.id)}
+        >
+          <Download size={17} /> Download arrangement MIDI
+        </button>
+        <button
+          className="secondary-button rebuild-inline"
+          disabled={busy || syncing}
+          onClick={sync}
+        >
+          <RefreshCw size={17} /> Sync FL to this rebuild
+        </button>
+      </div>
+      <p className="rebuild-muted">
+        Drag the MIDI onto the FL Playlist, then click Sync to set tempo and name the channels.
+      </p>
+      {report && <SyncReportView report={report} />}
+    </section>
+  );
+}
+
 function GuideCarousel({ project, client, busy, onProjectChange }) {
   const [index, setIndex] = useState(0);
   const steps = project.guideSteps;
@@ -549,6 +616,7 @@ export default function ReconstructionWorkspace({ client = api }) {
             <BlueprintPane project={project} client={client} busy={busy} onProjectChange={adopt} />
           </div>
           <Arrangement project={project} />
+          <SendToFl project={project} client={client} busy={busy} onError={setError} />
           <div className="rebuild-lower-grid">
             <Recommendations matches={project.soundMatches} busy={busy} onRefresh={() => run(async () => setInventory(await client.refreshInventory([])))} />
             <MixPlan plan={project.mixPlan} />

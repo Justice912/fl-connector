@@ -48,6 +48,15 @@ function clientFor(projects = []) {
     refreshInventory: vi.fn(),
     deleteReconstruction: vi.fn(),
     exportReconstruction: vi.fn(),
+    exportReconstructionMidi: vi.fn(),
+    syncReconstructionToFl: vi.fn().mockResolvedValue({
+      connected: true,
+      message: 'Synced FL session to the reconstruction.',
+      tempo: { value: 112, status: 'applied' },
+      channels: [{ index: 0, name: 'Bass', status: 'applied' }],
+      mixer: [{ index: 1, name: 'Bass', status: 'applied' }],
+      skipped: [],
+    }),
   };
 }
 
@@ -196,6 +205,31 @@ test('shows analysis evidence and supports overrides, approval, recommendations,
 
   fireEvent.click(screen.getByRole('button', { name: /mark step complete/i }));
   await waitFor(() => expect(client.updateGuideStep).toHaveBeenCalledWith('project-1', 'guide-1', true));
+});
+
+test('sends the rebuild to FL via MIDI download and bridge sync', async () => {
+  const project = draftProject({
+    status: 'review',
+    parts: [
+      {
+        id: 'part-1', sourceStemId: 'stem-1', name: 'Bass', role: 'bass',
+        outputMode: 'midi', confidence: 0.9, requiresReview: false, instrumentHint: 'BooBass',
+        patterns: [], audioRelativePath: null, audioStartSeconds: 0,
+        selectedSoundId: null, warnings: [], approved: false,
+      },
+    ],
+  });
+  const client = clientFor([project]);
+
+  render(<ReconstructionWorkspace client={client} />);
+
+  const download = await screen.findByRole('button', { name: /Download arrangement MIDI/i });
+  fireEvent.click(download);
+  expect(client.exportReconstructionMidi).toHaveBeenCalledWith('project-1');
+
+  fireEvent.click(screen.getByRole('button', { name: /Sync FL to this rebuild/i }));
+  await waitFor(() => expect(client.syncReconstructionToFl).toHaveBeenCalledWith('project-1'));
+  expect(await screen.findByText(/1 channel named/i)).toBeInTheDocument();
 });
 
 test('summarizes reconstruction acceptance blockers before final handoff', async () => {
