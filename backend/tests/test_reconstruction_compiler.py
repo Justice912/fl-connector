@@ -109,3 +109,14 @@ def test_compiler_defaults_low_confidence_material_to_audio():
     assert compiled.parts[0].outputMode == "audio"
     assert compiled.parts[0].requiresReview is False
 
+
+def test_guide_steps_describe_the_send_to_fl_loop():
+    from app.reconstruction_compiler import ReconstructionCompiler
+
+    steps = ReconstructionCompiler()._guide_steps()
+    titles = [step.title for step in steps]
+
+    assert any("arrangement MIDI" in title for title in titles)
+    assert any("Sync FL" in title for title in titles)
+    assert all(step.imageAsset.startswith("/guides/fl-2025/") for step in steps)
+

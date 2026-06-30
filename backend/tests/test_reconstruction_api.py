@@ -326,3 +326,62 @@ def test_delete_project_removes_it_from_listing(tmp_path: Path, monkeypatch):
 
     assert response.status_code == 204
     assert client.get("/api/reconstructions").json() == []
+
+
+# ---------------------------------------------------------------------------
+# MIDI export endpoint tests
+# ---------------------------------------------------------------------------
+
+
+def _seed_midi_project(reconstruction_store):
+    from app.contracts import Note, NotePayload
+    from app.reconstruction_contracts import PatternSlice, ReconstructedPart
+
+    project = reconstruction_store.create_project(title="Owned rebuild", rights_accepted=True)
+    payload = NotePayload.create(
+        title="Bass bars 1-1", sourcePrompt="Reconstructed", genre="South African dance",
+        bpm=112, key="G", scale="minor", bars=1, notes=[Note(40, 0.0, 1.0, 0.8)],
+    )
+    pattern = PatternSlice.create(name="Bass bars 1-1", startBar=1, payload=payload)
+    part = ReconstructedPart.create(
+        sourceStemId="stem-1", name="Bass", role="bass", outputMode="midi",
+        confidence=0.9, patterns=[pattern],
+    )
+    return reconstruction_store.save(project.with_changes(parts=[part]))
+
+
+def test_export_midi_returns_multitrack_file(tmp_path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    project = _seed_midi_project(main.RECONSTRUCTION_STORE)
+
+    response = client.get(f"/api/reconstructions/{project.id}/export-midi")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/midi"
+    assert response.content[:4] == b"MThd"
+
+
+def test_export_midi_404_for_unknown_and_400_when_no_midi_parts(tmp_path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    missing = client.get("/api/reconstructions/does-not-exist/export-midi")
+    empty = main.RECONSTRUCTION_STORE.create_project(title="No parts", rights_accepted=True)
+    no_midi = client.get(f"/api/reconstructions/{empty.id}/export-midi")
+
+    assert missing.status_code == 404
+    assert no_midi.status_code == 400
+
+
+def test_sync_fl_endpoint_returns_report(tmp_path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    project = _seed_midi_project(main.RECONSTRUCTION_STORE)
+
+    # bridge not connected in the test environment -> a clean disconnected report, not a 500
+    response = client.post(f"/api/reconstructions/{project.id}/sync-fl")
+    assert response.status_code == 200
+    assert response.json()["connected"] is False
+
+
+def test_sync_fl_endpoint_404_for_unknown(tmp_path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    response = client.post("/api/reconstructions/nope/sync-fl")
+    assert response.status_code == 404

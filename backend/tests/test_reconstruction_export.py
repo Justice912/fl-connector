@@ -71,3 +71,17 @@ def test_export_zip_contains_project_midi_and_reports(tmp_path):
     assert "guide-manifest.json" in names
     assert "midi/Bass/Bass A.mid" in names
 
+
+def test_export_zip_contains_full_arrangement_spine(tmp_path):
+    from app.reconstruction_export import build_reconstruction_export
+
+    project = project_with_pattern()  # existing helper in this file; has a MIDI "Bass" part
+    bundle_bytes = build_reconstruction_export(project, tmp_path)
+    from io import BytesIO
+    from zipfile import ZipFile
+
+    with ZipFile(BytesIO(bundle_bytes)) as bundle:
+        names = set(bundle.namelist())
+    assert "arrangement.mid" in names
+    assert "midi/Bass/Bass A.mid" in names  # per-pattern files still present
+

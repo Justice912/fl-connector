@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from .contracts import Note, NotePayload, SongDraft
+from .reconstruction_contracts import ReconstructionProject
 
 PPQ = 96
 
@@ -88,4 +91,20 @@ def payload_to_midi(payload: NotePayload) -> bytes:
         _conductor_track(payload.title, payload.bpm),
         _encode_track(_note_events(payload.notes, 0), payload.title),
     ]
+    return _header(len(tracks)) + b"".join(tracks)
+
+
+def reconstruction_to_midi(project: ReconstructionProject) -> bytes:
+    bpm = round(project.analysisSummary.bpm) if project.analysisSummary else 120
+    tracks = [_conductor_track(project.title, bpm)]
+    midi_parts = [part for part in project.parts if part.outputMode == "midi"]
+    for index, part in enumerate(midi_parts):
+        notes: list[Note] = []
+        for pattern in part.patterns:
+            for bar in pattern.placements:
+                offset = (bar - 1) * 4
+                for note in pattern.payload.notes:
+                    notes.append(replace(note, startBeats=note.startBeats + offset))
+        events = _note_events(notes, index % 16)
+        tracks.append(_encode_track(events, part.name))
     return _header(len(tracks)) + b"".join(tracks)
