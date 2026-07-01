@@ -81,16 +81,13 @@ class ExtendJobRunner:
                 status="complete", progress=100, stage="complete", message="Extended mix ready.")
             return self.store.save(current.with_changes(extendJob=done, extendedMix=result))
         except ReconstructionError:
-            self._lock.release()
             raise
         except Exception as exc:
             current = self.store.get(project_id)
             failed = (current.extendJob or AnalysisJob.create()).with_progress(
                 status="error", stage="error", message="Extended mix failed.", error=str(exc))
-            saved = self.store.save(current.with_changes(extendJob=failed))
-            self._lock.release()
-            return saved
-        else:
+            return self.store.save(current.with_changes(extendJob=failed))
+        finally:
             self._lock.release()
 
     def start(self, project_id: str, options: dict[str, Any]) -> ReconstructionProject:

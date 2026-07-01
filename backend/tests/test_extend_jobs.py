@@ -54,3 +54,13 @@ def test_extend_runner_marks_error_on_provider_failure(tmp_path):
     result = ExtendJobRunner(store, Boom()).run(project.id, {"genre": "amapiano", "targetSeconds": 390, "vocalMode": "place_once"})
     assert result.extendJob.status == "error"
     assert "render blew up" in (result.extendJob.error or "")
+
+
+def test_extend_runner_releases_lock_after_success(tmp_path):
+    store = ReconstructionStore(tmp_path / "r")
+    project = _project_with_stem(store)
+    runner = ExtendJobRunner(store, FakeProvider())
+    first = runner.run(project.id, {"genre": "amapiano", "targetSeconds": 390, "vocalMode": "place_once"})
+    second = runner.run(project.id, {"genre": "amapiano", "targetSeconds": 390, "vocalMode": "place_once"})
+    assert first.extendJob.status == "complete"
+    assert second.extendJob.status == "complete"  # would hang/raise if the lock leaked
