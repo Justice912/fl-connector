@@ -21,12 +21,22 @@ def _write_stem(folder: Path, name: str, seconds: float, sr: int = 44100) -> dic
     return {"id": name, "fileName": name, "relativePath": rel, "role": "other"}
 
 
+def _write_stereo_stem(folder: Path, name: str, seconds: float, sr: int = 44100) -> dict:
+    n = int(seconds * sr)
+    t = np.linspace(0, seconds, n, endpoint=False)
+    stereo = np.stack([0.2 * np.sin(2 * np.pi * 110 * t), 0.2 * np.sin(2 * np.pi * 165 * t)], axis=1).astype("float32")
+    (folder / "input").mkdir(parents=True, exist_ok=True)
+    rel = f"input/{name}"
+    sf.write(folder / rel, stereo, sr)
+    return {"id": name, "fileName": name, "relativePath": rel, "role": "other"}
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         project = Path(tmp)
         stems = [
             _write_stem(project, "drums.wav", 20.0),
-            _write_stem(project, "bass.wav", 20.0),
+            _write_stereo_stem(project, "bass.wav", 20.0),
             _write_stem(project, "vocals.wav", 12.0),
         ]
         (project / "project.json").write_text(json.dumps({"stems": stems}), encoding="utf-8")

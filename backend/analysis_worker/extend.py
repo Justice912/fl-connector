@@ -65,6 +65,17 @@ def extend_project(project_path: Path, options: dict[str, Any], progress: Progre
             vocal_audio = audio.astype(np.float32)
         progress(5 + int(15 * (index + 1) / len(stems)), "decode", f"Loaded {stem['fileName']}.")
 
+    channels = max(int(a.shape[1]) for _role, a in decoded)
+
+    def _fit_channels(a):
+        if int(a.shape[1]) == channels:
+            return a
+        return np.repeat(a[:, :1], channels, axis=1)
+
+    decoded = [(role, _fit_channels(a)) for role, a in decoded]
+    if vocal_audio is not None:
+        vocal_audio = _fit_channels(vocal_audio)
+
     # Light tempo detection from the busiest stem.
     ref = max(decoded, key=lambda item: float(np.mean(np.abs(item[1]))))[1].mean(axis=1)
     tempo_value, _beats = librosa.beat.beat_track(y=ref, sr=sr)
@@ -86,7 +97,6 @@ def extend_project(project_path: Path, options: dict[str, Any], progress: Progre
     loop_start = (choose_loop_window(source_bars, loop_bars) - 1) * spb
     fade = int(0.010 * sr)  # 10 ms
     vocal_mode = str(options.get("vocalMode", "place_once"))
-    channels = decoded[0][1].shape[1]
     warnings: list[str] = []
 
     progress(40, "render", "Arranging sections.")
