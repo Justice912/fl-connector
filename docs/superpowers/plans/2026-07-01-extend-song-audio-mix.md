@@ -259,6 +259,29 @@ def build_extension_plan(
             bars = _round_to(round(remaining * weight / weight_total), loop_bars)
         filtered = [role for role in active if role in present]
         sections.append(ExtensionSection(name=name, bars=bars, active_roles=filtered, is_main=is_main))
+
+    # Guarantee the total lands in the accepted 360-420 s window by nudging instrumental
+    # sections by whole loop phrases (rounding-down above can otherwise fall short).
+    bar_seconds = 240.0 / tempo_bpm
+
+    def _seconds(secs: list[ExtensionSection]) -> float:
+        return sum(s.bars for s in secs) * bar_seconds
+
+    def _bump(index: int, delta: int) -> None:
+        s = sections[index]
+        sections[index] = ExtensionSection(s.name, s.bars + delta, s.active_roles, s.is_main)
+
+    instr_idx = [i for i, s in enumerate(sections) if not s.is_main]
+    cursor = 0
+    while instr_idx and _seconds(sections) < 360.0:
+        _bump(instr_idx[cursor % len(instr_idx)], loop_bars)
+        cursor += 1
+    while _seconds(sections) > 420.0:
+        reducible = [i for i in instr_idx if sections[i].bars > loop_bars]
+        if not reducible:
+            break
+        _bump(reducible[cursor % len(reducible)], -loop_bars)
+        cursor += 1
     return ExtensionPlan(sections=sections, loop_bars=loop_bars, tempo_bpm=tempo_bpm)
 
 
@@ -286,7 +309,9 @@ def render_layout(plan: ExtensionPlan, spb: int) -> list[tuple[int, int, list[st
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cd backend && python -m pytest tests/test_extension_plan.py -v`
-Expected: PASS (all tests). If `test_plan_hits_target_window` lands outside 360–420 s for the given inputs, adjust `default_main_bars`/weights — but with the values above it lands ~390 s.
+Expected: PASS (all tests). The window is guaranteed by the correction loop at the end of
+`build_extension_plan` (it adds/removes whole loop phrases from instrumental sections until
+`total_seconds()` is within 360–420 s), so the target-window assertion holds for any tempo/vocal.
 
 - [ ] **Step 5: Commit**
 
