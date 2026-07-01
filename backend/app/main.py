@@ -46,6 +46,7 @@ from .reconstruction_contracts import (
 from .reconstruction_export import build_reconstruction_export
 from .reconstruction_sync import apply_reconstruction_sync
 from .reconstruction_store import MAX_PROJECT_BYTES, ReconstructionStore, UploadCandidate
+from .static_site import mount_frontend
 from .store import PayloadStore
 
 APP_ROOT = Path(__file__).resolve().parents[2]
@@ -845,3 +846,6 @@ def _scan_inventory() -> InventorySnapshot:
         except (OSError, ValueError, TypeError):
             pass
     return InventoryScanner(roots).scan()
+
+
+mount_frontend(app, APP_ROOT / "frontend" / "dist")
