@@ -500,7 +500,7 @@ function ExtendSong({ project, client, busy, onError, onProjectChange }) {
     }
   }
 
-  const mixUrl = client.extendedMixUrl(project.id);
+  const mixUrl = mix ? `${client.extendedMixUrl(project.id)}?v=${encodeURIComponent(job?.updatedAt ?? mix.durationSeconds ?? '')}` : '';
 
   return (
     <section className="rebuild-section extend-song">

@@ -416,3 +416,8 @@ def test_extended_mix_404_before_complete(tmp_path, monkeypatch):
     client = isolated_client(tmp_path, monkeypatch)
     empty = main.RECONSTRUCTION_STORE.create_project(title="None", rights_accepted=True)
     assert client.get(f"/api/reconstructions/{empty.id}/extended-mix").status_code == 404
+
+
+def test_extended_mix_404_for_malformed_id(tmp_path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    assert client.get("/api/reconstructions/not-a-uuid/extended-mix").status_code == 404

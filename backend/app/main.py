@@ -638,7 +638,10 @@ def extend_reconstruction(project_id: str, request: ReconstructionExtendRequest)
 
 @app.get("/api/reconstructions/{project_id}/extended-mix")
 def reconstruction_extended_mix(project_id: str) -> FileResponse:
-    path = RECONSTRUCTION_STORE.extended_mix_path(project_id)
+    try:
+        path = RECONSTRUCTION_STORE.extended_mix_path(project_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="reconstruction project not found") from exc
     if not path.exists():
         raise HTTPException(status_code=404, detail="extended mix not ready")
     return FileResponse(path, media_type="audio/wav", filename="extended-mix.wav")
