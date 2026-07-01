@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from .analysis import LocalAnalysisProvider
 from .analysis_jobs import AnalysisJobRunner
+from .extend_jobs import ExtendJobRunner, LocalExtendProvider
 from .analysis_setup import build_analysis_setup_plan, install_analysis_worker, worker_python
 from .bridge import (
     probe_bridge,
@@ -57,6 +58,7 @@ INVENTORY_ROOTS_PATH = APP_ROOT / ".data" / "inventory_roots.json"
 DEFAULT_CORS_ORIGINS = ("http://127.0.0.1:5173", "http://localhost:5173")
 
 _ANALYSIS_RUNNER: AnalysisJobRunner | None = None
+_EXTEND_RUNNER: ExtendJobRunner | None = None
 
 
 def _parse_cors_origins(value: str | None) -> list[str]:
@@ -155,6 +157,12 @@ class ReconstructionPatchRequest(BaseModel):
     bpm: float | None = Field(default=None, ge=40, le=240)
     key: str | None = None
     scale: str | None = Field(default=None, pattern="^(major|minor)$")
+
+
+class ReconstructionExtendRequest(BaseModel):
+    genre: str = Field(default="amapiano")
+    targetSeconds: float = Field(default=390.0, ge=360.0, le=420.0)
+    vocalMode: str = Field(default="place_once", pattern="^(place_once|loop|drop)$")
 
 
 class ReconstructionPartPatchRequest(BaseModel):
@@ -614,6 +622,28 @@ def retry_reconstruction(project_id: str) -> dict[str, Any]:
     return analyze_reconstruction(project_id)
 
 
+@app.post("/api/reconstructions/{project_id}/extend", status_code=202)
+def extend_reconstruction(project_id: str, request: ReconstructionExtendRequest) -> dict[str, Any]:
+    try:
+        project = RECONSTRUCTION_STORE.get(project_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="reconstruction project not found") from exc
+    if not project.stems:
+        raise HTTPException(status_code=400, detail="upload at least one stem before extending")
+    try:
+        return _extend_runner().start(project_id, request.model_dump()).to_dict()
+    except ReconstructionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.get("/api/reconstructions/{project_id}/extended-mix")
+def reconstruction_extended_mix(project_id: str) -> FileResponse:
+    path = RECONSTRUCTION_STORE.extended_mix_path(project_id)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="extended mix not ready")
+    return FileResponse(path, media_type="audio/wav", filename="extended-mix.wav")
+
+
 @app.patch("/api/reconstructions/{project_id}/parts/{part_id}")
 def patch_reconstruction_part(
     project_id: str,
@@ -830,6 +860,15 @@ def _analysis_runner() -> AnalysisJobRunner:
             inventory_provider=_scan_inventory,
         )
     return _ANALYSIS_RUNNER
+
+
+def _extend_runner() -> ExtendJobRunner:
+    global _EXTEND_RUNNER
+    if _EXTEND_RUNNER is None:
+        _EXTEND_RUNNER = ExtendJobRunner(
+            RECONSTRUCTION_STORE, LocalExtendProvider(worker_python(APP_ROOT), APP_ROOT / "backend")
+        )
+    return _EXTEND_RUNNER
 
 
 def _scan_inventory() -> InventorySnapshot:
