@@ -167,6 +167,16 @@ The Phase 2 generator currently creates five Amapiano parts:
 - `Main log drum riff`
 - `Sparse top response`
 
+## Run as a desktop app (Windows)
+
+One-time setup: `cd frontend && npm run build`, then
+`backend\.venv\Scripts\python -m pip install "pywebview>=5,<6"`.
+
+Then double-click **Start FL Connector.cmd** (or run
+`scripts/install-shortcut.ps1` once to add a Desktop icon). FL Connector opens in
+its own window with the backend running locally. FL Studio + Flapi and the
+on-demand analysis worker are unchanged.
+
 ## Reference Repos
 
 - `.scratch/external/Flapi` is the live-bridge reference fork candidate.
