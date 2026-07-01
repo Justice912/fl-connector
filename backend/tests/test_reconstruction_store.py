@@ -69,3 +69,12 @@ def test_zip_upload_persists_valid_stems_and_storage_size(tmp_path: Path):
     assert updated.storageBytes == len(wav_bytes()) * 2
     assert (tmp_path / project.id / "input" / "Bass.wav").exists()
 
+
+def test_extended_paths_are_under_project_dir(tmp_path):
+    from app.reconstruction_store import ReconstructionStore
+
+    store = ReconstructionStore(tmp_path / "reconstructions")
+    project = store.create_project(title="Paths", rights_accepted=True)
+    assert store.extended_dir(project.id) == store.project_dir(project.id) / "extended"
+    assert store.extended_mix_path(project.id) == store.project_dir(project.id) / "extended" / "extended-mix.wav"
+

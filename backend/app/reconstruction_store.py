@@ -43,6 +43,12 @@ class ReconstructionStore:
             raise FileNotFoundError(project_id)
         return self.base_dir / project_id
 
+    def extended_dir(self, project_id: str) -> Path:
+        return self.project_dir(project_id) / "extended"
+
+    def extended_mix_path(self, project_id: str) -> Path:
+        return self.extended_dir(project_id) / "extended-mix.wav"
+
     def create_project(
         self,
         title: str,

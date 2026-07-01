@@ -76,6 +76,20 @@ def test_project_round_trips_stems_job_and_midi_part():
     assert hydrated.parts[0].requiresReview is False
 
 
+def test_project_round_trips_extend_fields():
+    from app.reconstruction_contracts import AnalysisJob, ReconstructionProject
+
+    project = ReconstructionProject.create(title="Extend me", rightsAccepted=True)
+    job = AnalysisJob.create()
+    project = project.with_changes(
+        extendJob=job,
+        extendedMix={"relativePath": "extended/extended-mix.wav", "durationSeconds": 392.0, "warnings": []},
+    )
+    restored = ReconstructionProject.from_dict(project.to_dict())
+    assert restored.extendedMix["relativePath"] == "extended/extended-mix.wav"
+    assert restored.extendJob is not None and restored.extendJob.id == job.id
+
+
 def test_analysis_summary_preserves_mix_measurements():
     summary = AnalysisSummary.from_dict(
         {
