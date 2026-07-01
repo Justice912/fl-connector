@@ -63,6 +63,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         server = _start_server()
         if not _wait_until_up():
+            server.should_exit = True
             print("Backend did not become ready in time.", file=sys.stderr)
             return 1
         print(f"FL Connector backend ready at {URL}")
