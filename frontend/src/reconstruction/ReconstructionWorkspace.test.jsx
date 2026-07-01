@@ -311,9 +311,10 @@ test('starts an extended mix from the Extend Song card', async () => {
   const client = clientFor([project]);
 
   render(<ReconstructionWorkspace client={client} />);
+  client.extendReconstruction.mockResolvedValue(project);
 
   const create = await screen.findByRole('button', { name: /Create extended mix/i });
   fireEvent.click(create);
   await waitFor(() => expect(client.extendReconstruction).toHaveBeenCalledWith(
-    'project-1', expect.objectContaining({ genre: expect.any(String), vocalMode: expect.any(String) })));
+    'project-1', expect.objectContaining({ genre: expect.any(String), targetSeconds: expect.any(Number), vocalMode: expect.any(String) })));
 });

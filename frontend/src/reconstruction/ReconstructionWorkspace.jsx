@@ -492,14 +492,15 @@ function ExtendSong({ project, client, busy, onError, onProjectChange }) {
     setWorking(true);
     onError('');
     try {
-      const result = await client.extendReconstruction(project.id, { genre, targetSeconds, vocalMode });
-      if (result?.id) onProjectChange(result);
+      onProjectChange(await client.extendReconstruction(project.id, { genre, targetSeconds, vocalMode }));
     } catch (reason) {
       onError(reason.message);
     } finally {
       setWorking(false);
     }
   }
+
+  const mixUrl = client.extendedMixUrl(project.id);
 
   return (
     <section className="rebuild-section extend-song">
@@ -529,8 +530,8 @@ function ExtendSong({ project, client, busy, onError, onProjectChange }) {
       {job && job.status !== 'complete' && <progress max="100" value={job.progress}>{job.progress}%</progress>}
       {mix && (
         <div className="extend-result">
-          <audio controls preload="metadata" src={client.extendedMixUrl(project.id)} />
-          <a href={client.extendedMixUrl(project.id)} download>Download extended mix ({Math.round(mix.durationSeconds)}s)</a>
+          <audio controls preload="metadata" src={mixUrl} />
+          <a href={mixUrl} download>Download extended mix ({Math.round(mix.durationSeconds)}s)</a>
         </div>
       )}
     </section>
