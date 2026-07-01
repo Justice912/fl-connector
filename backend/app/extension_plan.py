@@ -102,7 +102,7 @@ def build_extension_plan(
     main_source_bars = round((vocal_seconds / bar_seconds)) if vocal_seconds else default_main_bars
     main_total = _round_to(main_source_bars, loop_bars)
     main_sections = [row for row in template if row[3]]
-    per_main = _round_to(main_total // max(1, len(main_sections)), loop_bars)
+    per_main = _round_to(round(main_total / max(1, len(main_sections))), loop_bars)
 
     # Remaining bars go to instrumental sections, distributed by weight.
     instrumental = [row for row in template if not row[3]]
@@ -121,7 +121,6 @@ def build_extension_plan(
 
     # Guarantee the total lands in the accepted 360-420 s window by nudging instrumental
     # sections by whole loop phrases (rounding-down above can otherwise fall short).
-    bar_seconds = 240.0 / tempo_bpm
 
     def _seconds(secs: list[ExtensionSection]) -> float:
         return sum(s.bars for s in secs) * bar_seconds
@@ -135,6 +134,7 @@ def build_extension_plan(
     while instr_idx and _seconds(sections) < 360.0:
         _bump(instr_idx[cursor % len(instr_idx)], loop_bars)
         cursor += 1
+    cursor = 0
     while _seconds(sections) > 420.0:
         reducible = [i for i in instr_idx if sections[i].bars > loop_bars]
         if not reducible:

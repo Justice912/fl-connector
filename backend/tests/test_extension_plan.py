@@ -1,5 +1,3 @@
-import math
-
 import pytest
 
 from app.extension_plan import (
