@@ -86,6 +86,8 @@ export const api = {
   inventory: () => request('/api/inventory'),
   refreshInventory: (extraRoots = []) => request('/api/inventory/refresh', { method: 'POST', body: JSON.stringify({ extraRoots }) }),
   exportReconstruction: (id) => download(`/api/reconstructions/${id}/export`, `reconstruction-${id}.zip`),
+  extendReconstruction: (id, body) => request(`/api/reconstructions/${id}/extend`, { method: 'POST', body: JSON.stringify(body) }),
+  extendedMixUrl: (id) => `${API_BASE}/api/reconstructions/${id}/extended-mix`,
   exportReconstructionMidi: (id) => download(`/api/reconstructions/${id}/export-midi`, `rebuild-${id}.mid`),
   syncReconstructionToFl: (id) => request(`/api/reconstructions/${id}/sync-fl`, { method: 'POST' }),
   stemContentUrl: (projectId, stemId) => `${API_BASE}/api/reconstructions/${projectId}/stems/${stemId}/content`,
