@@ -385,3 +385,39 @@ def test_sync_fl_endpoint_404_for_unknown(tmp_path, monkeypatch):
     client = isolated_client(tmp_path, monkeypatch)
     response = client.post("/api/reconstructions/nope/sync-fl")
     assert response.status_code == 404
+
+
+def test_extend_endpoint_starts_job(tmp_path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    created = client.post("/api/reconstructions", json={"title": "Extend", "rightsAccepted": True})
+    pid = created.json()["id"]
+    client.post(f"/api/reconstructions/{pid}/stems",
+                files=[("files", ("drums.wav", wav_bytes(), "audio/wav"))])
+
+    class FakeRunner:
+        def start(self, project_id, options):
+            return main.RECONSTRUCTION_STORE.get(project_id)
+
+    monkeypatch.setattr(main, "_extend_runner", lambda: FakeRunner())
+    started = client.post(f"/api/reconstructions/{pid}/extend",
+                          json={"genre": "amapiano", "targetSeconds": 390, "vocalMode": "place_once"})
+    assert started.status_code == 202
+
+
+def test_extend_endpoint_400_without_stems(tmp_path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    empty = main.RECONSTRUCTION_STORE.create_project(title="No stems", rights_accepted=True)
+    resp = client.post(f"/api/reconstructions/{empty.id}/extend",
+                       json={"genre": "amapiano", "targetSeconds": 390, "vocalMode": "place_once"})
+    assert resp.status_code == 400
+
+
+def test_extended_mix_404_before_complete(tmp_path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    empty = main.RECONSTRUCTION_STORE.create_project(title="None", rights_accepted=True)
+    assert client.get(f"/api/reconstructions/{empty.id}/extended-mix").status_code == 404
+
+
+def test_extended_mix_404_for_malformed_id(tmp_path, monkeypatch):
+    client = isolated_client(tmp_path, monkeypatch)
+    assert client.get("/api/reconstructions/not-a-uuid/extended-mix").status_code == 404

@@ -57,6 +57,8 @@ function clientFor(projects = []) {
       mixer: [{ index: 1, name: 'Bass', status: 'applied' }],
       skipped: [],
     }),
+    extendReconstruction: vi.fn().mockResolvedValue({}),
+    extendedMixUrl: vi.fn().mockReturnValue('/api/reconstructions/project-1/extended-mix'),
   };
 }
 
@@ -297,4 +299,22 @@ test('summarizes reconstruction acceptance blockers before final handoff', async
   expect(screen.getByText(/2 MIDI parts need sounds/i)).toBeInTheDocument();
   expect(screen.getByText(/0\/1 guide steps complete/i)).toBeInTheDocument();
   expect(screen.getByText(/Key confidence 65%/i)).toBeInTheDocument();
+});
+
+test('starts an extended mix from the Extend Song card', async () => {
+  const project = draftProject({
+    status: 'review',
+    stems: [{ id: 's1', fileName: 'drums.wav', storedName: 'drums.wav', relativePath: 'input/drums.wav',
+              mediaType: 'audio/wav', sizeBytes: 1000, sha256: 'x'.repeat(64), role: 'drums',
+              status: 'uploaded', createdAt: 'now' }],
+  });
+  const client = clientFor([project]);
+
+  render(<ReconstructionWorkspace client={client} />);
+  client.extendReconstruction.mockResolvedValue(project);
+
+  const create = await screen.findByRole('button', { name: /Create extended mix/i });
+  fireEvent.click(create);
+  await waitFor(() => expect(client.extendReconstruction).toHaveBeenCalledWith(
+    'project-1', expect.objectContaining({ genre: expect.any(String), targetSeconds: expect.any(Number), vocalMode: expect.any(String) })));
 });

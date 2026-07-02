@@ -642,6 +642,8 @@ class ReconstructionProject:
     guideSteps: list[GuideStep]
     mixPlan: dict[str, Any] | None
     warnings: list[str]
+    extendJob: "AnalysisJob | None" = None
+    extendedMix: dict[str, Any] | None = None
 
     @classmethod
     def create(
@@ -675,6 +677,8 @@ class ReconstructionProject:
             guideSteps=[],
             mixPlan=None,
             warnings=[],
+            extendJob=None,
+            extendedMix=None,
         )
 
     @classmethod
@@ -706,6 +710,8 @@ class ReconstructionProject:
             guideSteps=[GuideStep.from_dict(item) for item in value.get("guideSteps", [])],
             mixPlan=(dict(value["mixPlan"]) if value.get("mixPlan") else None),
             warnings=[str(item) for item in value.get("warnings", [])],
+            extendJob=(AnalysisJob.from_dict(value["extendJob"]) if value.get("extendJob") else None),
+            extendedMix=(dict(value["extendedMix"]) if value.get("extendedMix") else None),
         )
         project.validate()
         return project
@@ -747,4 +753,6 @@ class ReconstructionProject:
             "guideSteps": [item.to_dict() for item in self.guideSteps],
             "mixPlan": self.mixPlan,
             "warnings": self.warnings,
+            "extendJob": self.extendJob.to_dict() if self.extendJob else None,
+            "extendedMix": self.extendedMix,
         }

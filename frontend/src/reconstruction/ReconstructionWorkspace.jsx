@@ -4,6 +4,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Download,
   FileAudio,
   FolderSearch,
@@ -478,6 +479,65 @@ function SendToFl({ project, client, busy, onError }) {
   );
 }
 
+function ExtendSong({ project, client, busy, onError, onProjectChange }) {
+  const [genre, setGenre] = useState('amapiano');
+  const [targetSeconds, setTargetSeconds] = useState(390);
+  const [vocalMode, setVocalMode] = useState('place_once');
+  const [working, setWorking] = useState(false);
+  const job = project.extendJob;
+  const mix = project.extendedMix;
+  const hasStems = project.stems.length > 0;
+
+  async function create() {
+    setWorking(true);
+    onError('');
+    try {
+      onProjectChange(await client.extendReconstruction(project.id, { genre, targetSeconds, vocalMode }));
+    } catch (reason) {
+      onError(reason.message);
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  const mixUrl = mix ? `${client.extendedMixUrl(project.id)}?v=${encodeURIComponent(job?.updatedAt ?? mix.durationSeconds ?? '')}` : '';
+
+  return (
+    <section className="rebuild-section extend-song">
+      <header><div><p>Extend song</p><h2>6-7 min extended mix</h2></div><Clock size={20} /></header>
+      <div className="extend-controls">
+        <label>Genre
+          <select value={genre} disabled={busy} onChange={(e) => setGenre(e.target.value)}>
+            <option value="amapiano">Amapiano</option>
+            <option value="deep_house">Deep House</option>
+          </select>
+        </label>
+        <label>Length: {Math.floor(targetSeconds / 60)}:{String(targetSeconds % 60).padStart(2, '0')}
+          <input type="range" min="360" max="420" step="10" value={targetSeconds}
+                 disabled={busy} onChange={(e) => setTargetSeconds(Number(e.target.value))} />
+        </label>
+        <label>Vocals
+          <select value={vocalMode} disabled={busy} onChange={(e) => setVocalMode(e.target.value)}>
+            <option value="place_once">Place once</option>
+            <option value="loop">Loop</option>
+            <option value="drop">Instrumental</option>
+          </select>
+        </label>
+        <button className="primary-button rebuild-inline" disabled={busy || working || !hasStems} onClick={create}>
+          <Clock size={16} /> Create extended mix
+        </button>
+      </div>
+      {job && job.status !== 'complete' && <progress max="100" value={job.progress}>{job.progress}%</progress>}
+      {mix && (
+        <div className="extend-result">
+          <audio controls preload="metadata" src={mixUrl} />
+          <a href={mixUrl} download>Download extended mix ({Math.round(mix.durationSeconds)}s)</a>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function GuideCarousel({ project, client, busy, onProjectChange }) {
   const [index, setIndex] = useState(0);
   const steps = project.guideSteps;
@@ -542,12 +602,13 @@ export default function ReconstructionWorkspace({ client = api }) {
   }, [client]);
 
   useEffect(() => {
-    if (!project || !['queued', 'running'].includes(project.analysisJob?.status)) return undefined;
+    const active = ['queued', 'running'];
+    if (!project || !(active.includes(project.analysisJob?.status) || active.includes(project.extendJob?.status))) return undefined;
     const timer = window.setInterval(() => {
       client.getReconstruction(project.id).then(setProject).catch((reason) => setError(reason.message));
     }, 1500);
     return () => window.clearInterval(timer);
-  }, [client, project?.id, project?.analysisJob?.status]);
+  }, [client, project?.id, project?.analysisJob?.status, project?.extendJob?.status]);
 
   function adopt(next) {
     setProject(next);
@@ -616,6 +677,7 @@ export default function ReconstructionWorkspace({ client = api }) {
             <BlueprintPane project={project} client={client} busy={busy} onProjectChange={adopt} />
           </div>
           <Arrangement project={project} />
+          <ExtendSong project={project} client={client} busy={busy} onError={setError} onProjectChange={adopt} />
           <SendToFl project={project} client={client} busy={busy} onError={setError} />
           <div className="rebuild-lower-grid">
             <Recommendations matches={project.soundMatches} busy={busy} onRefresh={() => run(async () => setInventory(await client.refreshInventory([])))} />
